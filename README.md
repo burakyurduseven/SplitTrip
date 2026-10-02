@@ -52,4 +52,11 @@ npm run test
 npm run build
 ```
 
-Mimari kararlar ve kapsam için `docs/architecture.md` dosyasına bakın.
+## Proje dokümantasyonu
+
+- Ürün kapsamı ve roller: `docs/product-requirements.md`
+- Başlangıç veri modeli: `docs/domain-model.md`
+- Tasarım sistemi: `docs/design-system.md`
+- Geliştirme sırası: `docs/roadmap.md`
+- Mimari yaklaşım: `docs/architecture.md`
+- Geliştirme ortamı: `docs/development-environment.md`
