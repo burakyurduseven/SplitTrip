@@ -374,6 +374,29 @@ class TripIntegrationTest {
                 .andExpect(jsonPath("$.suggestedTransfers[0].fromName").value("Linus Torvalds"))
                 .andExpect(jsonPath("$.suggestedTransfers[0].toName").value("Ada Lovelace"))
                 .andExpect(jsonPath("$.suggestedTransfers[0].amount").value(50.00));
+
+        var payment = mockMvc.perform(post("/api/v1/trips/{tripId}/settlements", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fromUserId":"%s","toUserId":"%s","amount":20.00,"settlementDate":"2027-07-15","note":"Partial payment"}
+                                """.formatted(member.getId(), owner.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("ACTIVE")).andReturn();
+        String settlementId = JsonPath.read(payment.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/balances", tripId).header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.members[0].netBalance").value(30.00))
+                .andExpect(jsonPath("$.members[1].netBalance").value(-30.00))
+                .andExpect(jsonPath("$.suggestedTransfers[0].amount").value(30.00));
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/settlements/{settlementId}/void", tripId, settlementId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("VOIDED"));
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/settlements", tripId).header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].status").value("VOIDED"));
     }
 
     private String createIdea(String accessToken, UUID tripId, String title) throws Exception {

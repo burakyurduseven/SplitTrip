@@ -1,18 +1,36 @@
-import type { BalanceSummary, Trip } from './types'
+import { useState } from 'react'
+import type { BalanceSummary, Settlement, SettlementInput, TransferSuggestion, Trip } from './types'
 
 type Props = {
   trip: Trip
   summary: BalanceSummary | null
   currentUserId: string
+  settlements: Settlement[]
+  onRecord: (input: SettlementInput) => Promise<void>
+  onVoid: (settlementId: string) => Promise<void>
 }
 
 const initials = (name: string) => name.split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase()
 
-export function BalanceWorkspace({ trip, summary, currentUserId }: Props) {
+export function BalanceWorkspace({ trip, summary, currentUserId, settlements, onRecord, onVoid }: Props) {
+  const [selected, setSelected] = useState<TransferSuggestion | null>(null)
+  const [amount, setAmount] = useState('')
+  const [date, setDate] = useState('')
+  const [note, setNote] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
   const money = (amount: number) => new Intl.NumberFormat('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(amount))
   const current = summary?.members.find(member => member.userId === currentUserId)
   const net = Number(current?.netBalance ?? 0)
   const state = net > 0 ? 'credit' : net < 0 ? 'debt' : 'settled'
+  const openPayment = (transfer: TransferSuggestion) => { setSelected(transfer); setAmount(Number(transfer.amount).toFixed(2)); setDate(''); setNote(''); setError('') }
+  const recordPayment = async () => {
+    if (!selected) return
+    setSaving(true); setError('')
+    try { await onRecord({ fromUserId: selected.fromUserId, toUserId: selected.toUserId, amount: Number(amount), settlementDate: date, note }); setSelected(null) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'We could not record this payment.') }
+    finally { setSaving(false) }
+  }
 
   return (
     <div className="balance-workspace">
@@ -47,12 +65,20 @@ export function BalanceWorkspace({ trip, summary, currentUserId }: Props) {
               <div className="transfer-person"><span>{initials(transfer.fromName)}</span><div><small>FROM</small><strong>{transfer.fromName}</strong></div></div>
               <div className="transfer-route"><i /><b>→</b><i /></div>
               <div className="transfer-person receiver"><span>{initials(transfer.toName)}</span><div><small>TO</small><strong>{transfer.toName}</strong></div></div>
-              <strong className="transfer-amount">{trip.defaultCurrency} {money(Number(transfer.amount))}</strong>
+              <div className="transfer-action"><strong className="transfer-amount">{trip.defaultCurrency} {money(Number(transfer.amount))}</strong><button type="button" onClick={() => openPayment(transfer)}>Settle up</button></div>
             </article>)}
           </div> : <div className="settlement-empty"><span>✓</span><div><strong>No payments needed.</strong><small>Everyone is even based on the expenses recorded so far.</small></div></div>}
-          <footer>SplitTrip combines the group’s debts into a shorter payment plan. Payments are suggestions until settlement tracking is added.</footer>
+          <footer>SplitTrip combines the group’s debts into a shorter payment plan. Record full or partial payments as the group settles up.</footer>
+        </section>
+
+        <section className="payment-history">
+          <header><div><p>PAYMENT HISTORY</p><h2>Recorded payments</h2></div><span>{settlements.filter(item => item.status === 'ACTIVE').length} active</span></header>
+          {settlements.length ? <div>{settlements.map(payment => <article key={payment.id} className={payment.status === 'VOIDED' ? 'voided' : ''}>
+            <span className="history-mark">{payment.status === 'ACTIVE' ? '✓' : '×'}</span><div><strong>{payment.fromName} paid {payment.toName}</strong><small>{new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(`${payment.settlementDate}T00:00:00`))} · recorded by {payment.createdByName}{payment.note ? ` · ${payment.note}` : ''}</small></div><b>{trip.defaultCurrency} {money(Number(payment.amount))}</b>{payment.status === 'ACTIVE' ? <button type="button" onClick={() => void onVoid(payment.id)}>Void</button> : <em>VOIDED</em>}
+          </article>)}</div> : <div className="history-empty">No payments have been recorded yet.</div>}
         </section>
       </section>
+      {selected && <div className="dialog-backdrop" role="presentation"><section className="settlement-dialog" role="dialog" aria-modal="true" aria-labelledby="settlement-title"><button className="dialog-close" type="button" aria-label="Close payment" onClick={() => setSelected(null)}>×</button><p>SETTLE UP</p><h2 id="settlement-title">Record a payment.</h2><div className="settlement-people"><span>{initials(selected.fromName)}</span><strong>{selected.fromName}</strong><b>→</b><span>{initials(selected.toName)}</span><strong>{selected.toName}</strong></div><label>Amount<div className="amount-input"><span>{trip.defaultCurrency}</span><input aria-label="Payment amount" type="number" min="0.01" step="0.01" max={selected.amount} value={amount} onChange={event => setAmount(event.target.value)} /></div><small>Full suggestion: {trip.defaultCurrency} {money(Number(selected.amount))}. You can record a partial payment.</small></label><label>Payment date<input aria-label="Payment date" type="date" value={date} onChange={event => setDate(event.target.value)} /></label><label>Note <span>optional</span><textarea aria-label="Payment note" value={note} onChange={event => setNote(event.target.value)} placeholder="Bank transfer, cash..." /></label>{error && <p className="form-error" role="alert"><span>!</span>{error}</p>}<button className="activity-submit" type="button" disabled={saving || !amount || Number(amount) <= 0 || !date} onClick={() => void recordPayment()}>{saving ? 'Recording...' : 'Record payment'}</button></section></div>}
     </div>
   )
 }

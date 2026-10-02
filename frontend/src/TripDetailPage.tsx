@@ -5,7 +5,7 @@ import { ItineraryWorkspace } from './ItineraryWorkspace'
 import { ExpenseWorkspace } from './ExpenseWorkspace'
 import { BalanceWorkspace } from './BalanceWorkspace'
 import type { AppPage } from './AppNavigation'
-import type { ActivityIdea, ActivityVoteValue, BalanceSummary, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Trip, TripMember, UpdateScheduleInput } from './types'
+import type { ActivityIdea, ActivityVoteValue, BalanceSummary, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput } from './types'
 
 type Props = {
   trip: Trip
@@ -14,6 +14,7 @@ type Props = {
   itinerary: ItineraryItem[]
   expenses: Expense[]
   balances: BalanceSummary | null
+  settlements: Settlement[]
   currentUserId: string
   onNavigate: (page: AppPage) => void
   onCreateTrip: () => void
@@ -25,6 +26,8 @@ type Props = {
   onRemoveSchedule: (itemId: string, ideaId: string) => Promise<void>
   onSaveExpense: (input: ExpenseInput, expenseId?: string) => Promise<void>
   onDeleteExpense: (expenseId: string) => Promise<void>
+  onRecordSettlement: (input: SettlementInput) => Promise<void>
+  onVoidSettlement: (settlementId: string) => Promise<void>
   onRemoveMember: (userId: string) => Promise<void>
   onLeaveTrip: () => Promise<void>
   onLogout: () => Promise<void>
@@ -38,7 +41,7 @@ function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy:
   return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p><button type="button" disabled>Coming next</button></div>
 }
 
-export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, currentUserId, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRemoveMember, onLeaveTrip, onLogout }: Props) {
+export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
   const [section, setSection] = useState<Section>('overview')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
@@ -98,7 +101,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
           </div>}
           {section === 'itinerary' && <ItineraryWorkspace trip={trip} ideas={ideas} itinerary={itinerary} onCreateIdea={onCreateIdea} onVote={onVote} onSchedule={onSchedule} onUpdateSchedule={onUpdateSchedule} onRemoveSchedule={onRemoveSchedule} />}
           {section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} />}
-          {section === 'balances' && <BalanceWorkspace trip={trip} summary={balances} currentUserId={currentUserId} />}
+          {section === 'balances' && <BalanceWorkspace trip={trip} summary={balances} settlements={settlements} currentUserId={currentUserId} onRecord={onRecordSettlement} onVoid={onVoidSettlement} />}
           {section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}
         </section>
       </main>

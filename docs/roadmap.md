@@ -61,8 +61,8 @@ Exit criterion: all three split methods produce precise, tested results.
 - [x] Net balance queries
 - [x] Greedy debt simplification
 - [x] Suggested transfer interface
-- Full and partial settlement records
-- Financial history and void flows
+- [x] Full and partial settlement records
+- [x] Financial history and void flows
 
 Exit criterion: a group can settle its trip debts through the application.
 

@@ -127,3 +127,26 @@ export type BalanceSummary = {
   members: MemberBalance[]
   suggestedTransfers: TransferSuggestion[]
 }
+
+export type Settlement = {
+  id: string
+  fromUserId: string
+  fromName: string
+  toUserId: string
+  toName: string
+  amount: number
+  settlementDate: string
+  note: string | null
+  status: 'ACTIVE' | 'VOIDED'
+  createdByName: string
+  createdAt: string
+  voidedAt: string | null
+}
+
+export type SettlementInput = {
+  fromUserId: string
+  toUserId: string
+  amount: number
+  settlementDate: string
+  note: string
+}

@@ -9,8 +9,9 @@ import com.splittrip.trip.infrastructure.*;
 @Service
 public class BalanceService {
     private final ExpenseRepository expenseRepository;
+    private final SettlementRepository settlementRepository;
     private final TripMemberRepository memberRepository;
-    public BalanceService(ExpenseRepository expenseRepository, TripMemberRepository memberRepository) { this.expenseRepository = expenseRepository; this.memberRepository = memberRepository; }
+    public BalanceService(ExpenseRepository expenseRepository, SettlementRepository settlementRepository, TripMemberRepository memberRepository) { this.expenseRepository = expenseRepository; this.settlementRepository = settlementRepository; this.memberRepository = memberRepository; }
 
     @Transactional(readOnly = true)
     public BalanceSummary calculate(UUID tripId, UUID userId) {
@@ -31,6 +32,10 @@ public class BalanceService {
                 net.computeIfPresent(participantId, (id, value) -> value.subtract(share.getAmount()));
             }
         }
+        settlementRepository.findByTripId(tripId).stream().filter(settlement -> settlement.getStatus() == com.splittrip.trip.domain.SettlementStatus.ACTIVE).forEach(settlement -> {
+            net.computeIfPresent(settlement.getFromUser().getId(), (id, value) -> value.add(settlement.getAmount()));
+            net.computeIfPresent(settlement.getToUser().getId(), (id, value) -> value.subtract(settlement.getAmount()));
+        });
         var names = members.stream().collect(java.util.stream.Collectors.toMap(member -> member.getUser().getId(), member -> member.getUser().getDisplayName()));
         var balances = members.stream().map(member -> {
             var id = member.getUser().getId();
