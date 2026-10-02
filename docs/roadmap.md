@@ -58,9 +58,9 @@ Exit criterion: all three split methods produce precise, tested results.
 
 ## Phase 5 — Balances and settlement
 
-- Net balance queries
-- Greedy debt simplification
-- Suggested transfer interface
+- [x] Net balance queries
+- [x] Greedy debt simplification
+- [x] Suggested transfer interface
 - Full and partial settlement records
 - Financial history and void flows
 

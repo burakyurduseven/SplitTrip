@@ -35,6 +35,7 @@ import com.splittrip.trip.infrastructure.ItineraryItemRepository;
 import com.splittrip.trip.infrastructure.ExpenseRepository;
 import com.splittrip.trip.infrastructure.TripRepository;
 import com.splittrip.user.infrastructure.UserAccountRepository;
+import com.splittrip.trip.domain.TripMember;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -345,6 +346,34 @@ class TripIntegrationTest {
         mockMvc.perform(delete("/api/v1/trips/{tripId}/expenses/{expenseId}", tripId, expenseId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void calculatesBalancesAndSimplifiesTransfers() throws Exception {
+        var ownerToken = registerAndLogin("ada@example.com", "Ada Lovelace");
+        registerAndLogin("linus@example.com", "Linus Torvalds");
+        var tripId = createTrip(ownerToken, "Aegean Summer");
+        var owner = userRepository.findByEmail("ada@example.com").orElseThrow();
+        var member = userRepository.findByEmail("linus@example.com").orElseThrow();
+        tripMemberRepository.save(TripMember.member(tripRepository.findById(tripId).orElseThrow(), member));
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/expenses", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Taxi","amount":100.00,"expenseDate":"2027-07-13","paidById":"%s","splitMethod":"EQUAL","participants":[{"userId":"%s"},{"userId":"%s"}]}
+                                """.formatted(owner.getId(), owner.getId(), member.getId())))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/balances", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalSpent").value(100.00))
+                .andExpect(jsonPath("$.members[0].netBalance").value(50.00))
+                .andExpect(jsonPath("$.members[1].netBalance").value(-50.00))
+                .andExpect(jsonPath("$.suggestedTransfers[0].fromName").value("Linus Torvalds"))
+                .andExpect(jsonPath("$.suggestedTransfers[0].toName").value("Ada Lovelace"))
+                .andExpect(jsonPath("$.suggestedTransfers[0].amount").value(50.00));
     }
 
     private String createIdea(String accessToken, UUID tripId, String title) throws Exception {

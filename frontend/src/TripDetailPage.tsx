@@ -3,8 +3,9 @@ import { useState } from 'react'
 import { AppNavigation } from './AppNavigation'
 import { ItineraryWorkspace } from './ItineraryWorkspace'
 import { ExpenseWorkspace } from './ExpenseWorkspace'
+import { BalanceWorkspace } from './BalanceWorkspace'
 import type { AppPage } from './AppNavigation'
-import type { ActivityIdea, ActivityVoteValue, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Trip, TripMember, UpdateScheduleInput } from './types'
+import type { ActivityIdea, ActivityVoteValue, BalanceSummary, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Trip, TripMember, UpdateScheduleInput } from './types'
 
 type Props = {
   trip: Trip
@@ -12,6 +13,8 @@ type Props = {
   ideas: ActivityIdea[]
   itinerary: ItineraryItem[]
   expenses: Expense[]
+  balances: BalanceSummary | null
+  currentUserId: string
   onNavigate: (page: AppPage) => void
   onCreateTrip: () => void
   onCreateInvitation: () => Promise<{ url: string; expiresAt: string }>
@@ -35,7 +38,7 @@ function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy:
   return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p><button type="button" disabled>Coming next</button></div>
 }
 
-export function TripDetailPage({ trip, members, ideas, itinerary, expenses, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRemoveMember, onLeaveTrip, onLogout }: Props) {
+export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, currentUserId, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRemoveMember, onLeaveTrip, onLogout }: Props) {
   const [section, setSection] = useState<Section>('overview')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
@@ -44,6 +47,8 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, onNa
   const [inviteLoading, setInviteLoading] = useState(false)
   const days = Math.max(1, Math.round((new Date(`${trip.endDate}T00:00:00`).getTime() - new Date(`${trip.startDate}T00:00:00`).getTime()) / 86400000) + 1)
   const totalSpent = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
+  const currentBalance = Number(balances?.members.find(member => member.userId === currentUserId)?.netBalance ?? 0)
+  const formattedBalance = new Intl.NumberFormat('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Math.abs(currentBalance))
 
   const createInvitation = async () => {
     setInviteOpen(true)
@@ -79,7 +84,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, onNa
           <div><span>PEOPLE</span><strong>{members.length.toString().padStart(2, '0')}</strong><small>{members.length === 1 ? 'traveller' : 'travellers'} together</small></div>
           <div><span>ACTIVITIES</span><strong>{itinerary.length.toString().padStart(2, '0')}</strong><small>{itinerary.length ? 'in your itinerary' : 'Nothing planned yet'}</small></div>
           <div><span>SPENT</span><strong>{trip.defaultCurrency} {new Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(totalSpent)}</strong><small>{expenses.length ? `${expenses.length} shared ${expenses.length === 1 ? 'expense' : 'expenses'}` : 'No expenses yet'}</small></div>
-          <div><span>YOUR BALANCE</span><strong>{trip.defaultCurrency} 0</strong><small>All settled up</small></div>
+          <div><span>YOUR BALANCE</span><strong>{currentBalance > 0 ? '+' : currentBalance < 0 ? '−' : ''}{trip.defaultCurrency} {formattedBalance}</strong><small>{currentBalance > 0 ? 'You get back' : currentBalance < 0 ? 'You owe' : 'All settled up'}</small></div>
         </section>
 
         <nav className="detail-tabs" aria-label="Trip sections">
@@ -89,11 +94,11 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, onNa
         <section className="detail-content">
           {section === 'overview' && <div className="overview-layout">
             <article className="detail-panel detail-plan"><header><div><p>NEXT UP</p><h2>Your itinerary</h2></div><button type="button" onClick={() => setSection('itinerary')}>View itinerary →</button></header><EmptyModule icon="⌁" title="The days are yours to shape." copy="Activities will appear here once you start building the itinerary." /></article>
-            <aside className="detail-side-stack"><article className="detail-panel"><p className="panel-kicker">TRIP CREW</p><h2>Travelling together</h2>{members.slice(0, 2).map(member => <div className="current-member" key={member.userId}><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.role.toLowerCase()}</small></div></div>)}<button type="button" className="panel-link" onClick={() => setSection('members')}>See members →</button></article><article className="detail-panel money-panel"><p className="panel-kicker">SHARED MONEY</p><h2>Nothing to settle.</h2><p>Add expenses during the trip and SplitTrip will keep the group even.</p><button type="button" className="panel-link" onClick={() => setSection('expenses')}>See expenses →</button></article></aside>
+            <aside className="detail-side-stack"><article className="detail-panel"><p className="panel-kicker">TRIP CREW</p><h2>Travelling together</h2>{members.slice(0, 2).map(member => <div className="current-member" key={member.userId}><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.role.toLowerCase()}</small></div></div>)}<button type="button" className="panel-link" onClick={() => setSection('members')}>See members →</button></article><article className="detail-panel money-panel"><p className="panel-kicker">SHARED MONEY</p><h2>{currentBalance === 0 ? 'Nothing to settle.' : currentBalance > 0 ? `You get back ${trip.defaultCurrency} ${formattedBalance}.` : `You owe ${trip.defaultCurrency} ${formattedBalance}.`}</h2><p>{expenses.length ? 'Your position is calculated from every expense and share in this trip.' : 'Add expenses during the trip and SplitTrip will keep the group even.'}</p><button type="button" className="panel-link" onClick={() => setSection(expenses.length ? 'balances' : 'expenses')}>{expenses.length ? 'See balances' : 'See expenses'} →</button></article></aside>
           </div>}
           {section === 'itinerary' && <ItineraryWorkspace trip={trip} ideas={ideas} itinerary={itinerary} onCreateIdea={onCreateIdea} onVote={onVote} onSchedule={onSchedule} onUpdateSchedule={onUpdateSchedule} onRemoveSchedule={onRemoveSchedule} />}
           {section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} />}
-          {section === 'balances' && <EmptyModule icon="⇄" title="Everyone is settled up." copy="Balances and suggested transfers will appear after expenses are added." />}
+          {section === 'balances' && <BalanceWorkspace trip={trip} summary={balances} currentUserId={currentUserId} />}
           {section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}
         </section>
       </main>

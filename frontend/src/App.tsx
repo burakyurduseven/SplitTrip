@@ -6,7 +6,7 @@ import { TripsPage } from './TripsPage'
 import { TripDetailPage } from './TripDetailPage'
 import { InvitationPage } from './InvitationPage'
 import type { AppPage } from './AppNavigation'
-import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Trip, TripMember, UpdateScheduleInput } from './types'
+import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Trip, TripMember, UpdateScheduleInput } from './types'
 
 type AuthMode = 'login' | 'register'
 
@@ -48,6 +48,7 @@ function App() {
   const [ideas, setIdeas] = useState<ActivityIdea[]>([])
   const [itinerary, setItinerary] = useState<ItineraryItem[]>([])
   const [expenses, setExpenses] = useState<Expense[]>([])
+  const [balances, setBalances] = useState<BalanceSummary | null>(null)
   const [invitation, setInvitation] = useState<InvitationPreview | null>(null)
   const [invitationToken, setInvitationToken] = useState('')
   const [joining, setJoining] = useState(false)
@@ -61,6 +62,7 @@ function App() {
     setIdeas([])
     setItinerary([])
     setExpenses([])
+    setBalances(null)
     setUser(null)
     setMode('login')
   }
@@ -109,12 +111,13 @@ function App() {
 
     const tripRoute = window.location.pathname.match(/^\/trips\/([0-9a-f-]+)$/i)
     if (tripRoute) {
-      const [detailResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse] = await Promise.all([
+      const [detailResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse] = await Promise.all([
         fetch(`/api/v1/trips/${tripRoute[1]}`, { headers: authorization }),
         fetch(`/api/v1/trips/${tripRoute[1]}/members`, { headers: authorization }),
         fetch(`/api/v1/trips/${tripRoute[1]}/activity-ideas`, { headers: authorization }),
         fetch(`/api/v1/trips/${tripRoute[1]}/itinerary`, { headers: authorization }),
         fetch(`/api/v1/trips/${tripRoute[1]}/expenses`, { headers: authorization }),
+        fetch(`/api/v1/trips/${tripRoute[1]}/balances`, { headers: authorization }),
       ])
       if (detailResponse.ok) {
         setSelectedTrip(await detailResponse.json() as Trip)
@@ -122,6 +125,7 @@ function App() {
         if (ideasResponse.ok) setIdeas(await ideasResponse.json() as ActivityIdea[])
         if (itineraryResponse.ok) setItinerary(await itineraryResponse.json() as ItineraryItem[])
         if (expensesResponse.ok) setExpenses(await expensesResponse.json() as Expense[])
+        if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
         setPage('trip')
       } else {
         window.history.replaceState({}, '', '/trips')
@@ -221,18 +225,20 @@ function App() {
     setPage('trip')
     window.history.pushState({}, '', `/trips/${trip.id}`)
     try {
-      const [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse] = await Promise.all([
+      const [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse] = await Promise.all([
         authenticatedFetch(`/api/v1/trips/${trip.id}`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/members`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/activity-ideas`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/itinerary`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/expenses`),
+        authenticatedFetch(`/api/v1/trips/${trip.id}/balances`),
       ])
       if (tripResponse.ok) setSelectedTrip(await tripResponse.json() as Trip)
       if (membersResponse.ok) setMembers(await membersResponse.json() as TripMember[])
       if (ideasResponse.ok) setIdeas(await ideasResponse.json() as ActivityIdea[])
       if (itineraryResponse.ok) setItinerary(await itineraryResponse.json() as ItineraryItem[])
       if (expensesResponse.ok) setExpenses(await expensesResponse.json() as Expense[])
+      if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
     } catch {
       // Keep the list representation visible if the detail refresh is temporarily unavailable.
     }
@@ -304,6 +310,8 @@ function App() {
     if (!response.ok) { const problem = await readProblem(response); const fieldError = problem.errors && Object.values(problem.errors)[0]; throw new Error(fieldError ?? problem.detail ?? 'We could not save this expense.') }
     const saved = await response.json() as Expense
     setExpenses(current => expenseId ? current.map(expense => expense.id === saved.id ? saved : expense) : [saved, ...current])
+    const balancesResponse = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/balances`)
+    if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
   }
 
   const deleteExpense = async (expenseId: string) => {
@@ -311,6 +319,8 @@ function App() {
     const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/expenses/${expenseId}`, { method: 'DELETE' })
     if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not delete this expense.') }
     setExpenses(current => current.filter(expense => expense.id !== expenseId))
+    const balancesResponse = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/balances`)
+    if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
   }
 
   const removeMember = async (userId: string) => {
@@ -373,7 +383,7 @@ function App() {
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
     const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip) => void openTrip(trip), onCreateTrip: createTrip, onLogout: logout }
-    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
+    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} currentUserId={user.id} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

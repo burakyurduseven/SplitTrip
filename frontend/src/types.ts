@@ -105,3 +105,25 @@ export type ExpenseInput = {
   note: string
   participants: Array<{ userId: string; amount?: number; percentage?: number }>
 }
+
+export type MemberBalance = {
+  userId: string
+  displayName: string
+  paid: number
+  owed: number
+  netBalance: number
+}
+
+export type TransferSuggestion = {
+  fromUserId: string
+  fromName: string
+  toUserId: string
+  toName: string
+  amount: number
+}
+
+export type BalanceSummary = {
+  totalSpent: number
+  members: MemberBalance[]
+  suggestedTransfers: TransferSuggestion[]
+}
