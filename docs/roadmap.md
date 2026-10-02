@@ -47,12 +47,12 @@ Exit criterion: a group can collaboratively prepare its daily itinerary.
 
 ## Phase 4 — Expense engine
 
-- Expense, ExpensePayment, and ExpenseShare models
-- Equal split
-- Exact-amount split
-- Percentage split
+- [x] Expense and ExpenseShare models
+- [x] Equal split
+- [x] Exact-amount split
+- [x] Percentage split
 - Minor-unit distribution and comprehensive unit tests
-- Expense creation and editing interfaces
+- [x] Expense creation and editing interfaces
 
 Exit criterion: all three split methods produce precise, tested results.
 

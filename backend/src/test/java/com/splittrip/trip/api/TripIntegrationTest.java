@@ -32,6 +32,7 @@ import com.splittrip.trip.infrastructure.TripInvitationRepository;
 import com.splittrip.trip.infrastructure.ActivityIdeaRepository;
 import com.splittrip.trip.infrastructure.ActivityVoteRepository;
 import com.splittrip.trip.infrastructure.ItineraryItemRepository;
+import com.splittrip.trip.infrastructure.ExpenseRepository;
 import com.splittrip.trip.infrastructure.TripRepository;
 import com.splittrip.user.infrastructure.UserAccountRepository;
 
@@ -54,6 +55,7 @@ class TripIntegrationTest {
     private TripInvitationRepository tripInvitationRepository;
 
     @Autowired private ItineraryItemRepository itineraryItemRepository;
+    @Autowired private ExpenseRepository expenseRepository;
     @Autowired private ActivityVoteRepository activityVoteRepository;
     @Autowired private ActivityIdeaRepository activityIdeaRepository;
 
@@ -68,6 +70,7 @@ class TripIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        expenseRepository.deleteAll();
         itineraryItemRepository.deleteAll();
         activityVoteRepository.deleteAll();
         activityIdeaRepository.deleteAll();
@@ -297,6 +300,51 @@ class TripIntegrationTest {
         mockMvc.perform(get("/api/v1/trips/{tripId}/activity-ideas", tripId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("PROPOSED"));
+    }
+
+    @Test
+    void createsAndValidatesSharedExpenses() throws Exception {
+        var accessToken = registerAndLogin("ada@example.com", "Ada Lovelace");
+        var tripId = createTrip(accessToken, "Aegean Summer");
+        var userId = userRepository.findByEmail("ada@example.com").orElseThrow().getId();
+
+        var createdExpense = mockMvc.perform(post("/api/v1/trips/{tripId}/expenses", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Dinner","amount":900.00,"expenseDate":"2027-07-13","paidById":"%s","splitMethod":"EQUAL","participants":[{"userId":"%s"}]}
+                                """.formatted(userId, userId)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.amount").value(900.00))
+                .andExpect(jsonPath("$.shares[0].amount").value(900.00)).andReturn();
+        String expenseId = JsonPath.read(createdExpense.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/expenses", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Tickets","amount":100.00,"expenseDate":"2027-07-13","paidById":"%s","splitMethod":"PERCENTAGE","participants":[{"userId":"%s","percentage":90}]}
+                                """.formatted(userId, userId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Percentage shares must add up to 100."));
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/expenses", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(1)));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/v1/trips/{tripId}/expenses/{expenseId}", tripId, expenseId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Updated dinner","amount":750.00,"expenseDate":"2027-07-14","paidById":"%s","splitMethod":"EXACT","participants":[{"userId":"%s","amount":750.00}]}
+                                """.formatted(userId, userId)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Updated dinner"))
+                .andExpect(jsonPath("$.shares[0].amount").value(750.00));
+
+        mockMvc.perform(delete("/api/v1/trips/{tripId}/expenses/{expenseId}", tripId, expenseId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+                .andExpect(status().isNoContent());
     }
 
     private String createIdea(String accessToken, UUID tripId, String title) throws Exception {

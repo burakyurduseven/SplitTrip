@@ -32,6 +32,7 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ([{ userId: 'user-1', displayName: 'Burak Yurduseven', email: 'burak@example.com', role: 'OWNER', joinedAt: '2026-10-02T00:00:00Z' }]) })
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ token: 'secure-invite-token', expiresAt: '2026-10-09T00:00:00Z' }) }))
 
     render(<App />)

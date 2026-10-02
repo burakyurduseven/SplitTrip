@@ -80,3 +80,28 @@ export type ItineraryItem = {
   scheduledByName: string
   overlapsExistingItem: boolean
 }
+
+export type ExpenseSplitMethod = 'EQUAL' | 'EXACT' | 'PERCENTAGE'
+export type ExpenseShare = { userId: string; displayName: string; amount: number; percentage: number | null }
+export type Expense = {
+  id: string
+  title: string
+  amount: number
+  expenseDate: string
+  splitMethod: ExpenseSplitMethod
+  note: string | null
+  paidById: string
+  paidByName: string
+  createdByName: string
+  shares: ExpenseShare[]
+  createdAt: string
+}
+export type ExpenseInput = {
+  title: string
+  amount: number
+  expenseDate: string
+  paidById: string
+  splitMethod: ExpenseSplitMethod
+  note: string
+  participants: Array<{ userId: string; amount?: number; percentage?: number }>
+}

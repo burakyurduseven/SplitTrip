@@ -2,14 +2,16 @@ import { useState } from 'react'
 
 import { AppNavigation } from './AppNavigation'
 import { ItineraryWorkspace } from './ItineraryWorkspace'
+import { ExpenseWorkspace } from './ExpenseWorkspace'
 import type { AppPage } from './AppNavigation'
-import type { ActivityIdea, ActivityVoteValue, CreateActivityIdeaInput, ItineraryItem, ScheduleActivityInput, Trip, TripMember, UpdateScheduleInput } from './types'
+import type { ActivityIdea, ActivityVoteValue, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Trip, TripMember, UpdateScheduleInput } from './types'
 
 type Props = {
   trip: Trip
   members: TripMember[]
   ideas: ActivityIdea[]
   itinerary: ItineraryItem[]
+  expenses: Expense[]
   onNavigate: (page: AppPage) => void
   onCreateTrip: () => void
   onCreateInvitation: () => Promise<{ url: string; expiresAt: string }>
@@ -18,6 +20,8 @@ type Props = {
   onSchedule: (input: ScheduleActivityInput) => Promise<ItineraryItem>
   onUpdateSchedule: (itemId: string, input: UpdateScheduleInput) => Promise<ItineraryItem>
   onRemoveSchedule: (itemId: string, ideaId: string) => Promise<void>
+  onSaveExpense: (input: ExpenseInput, expenseId?: string) => Promise<void>
+  onDeleteExpense: (expenseId: string) => Promise<void>
   onRemoveMember: (userId: string) => Promise<void>
   onLeaveTrip: () => Promise<void>
   onLogout: () => Promise<void>
@@ -31,7 +35,7 @@ function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy:
   return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p><button type="button" disabled>Coming next</button></div>
 }
 
-export function TripDetailPage({ trip, members, ideas, itinerary, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onRemoveMember, onLeaveTrip, onLogout }: Props) {
+export function TripDetailPage({ trip, members, ideas, itinerary, expenses, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRemoveMember, onLeaveTrip, onLogout }: Props) {
   const [section, setSection] = useState<Section>('overview')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
@@ -39,6 +43,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, onNavigate, on
   const [inviteError, setInviteError] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
   const days = Math.max(1, Math.round((new Date(`${trip.endDate}T00:00:00`).getTime() - new Date(`${trip.startDate}T00:00:00`).getTime()) / 86400000) + 1)
+  const totalSpent = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
 
   const createInvitation = async () => {
     setInviteOpen(true)
@@ -73,7 +78,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, onNavigate, on
         <section className="detail-stats" aria-label="Trip summary">
           <div><span>PEOPLE</span><strong>{members.length.toString().padStart(2, '0')}</strong><small>{members.length === 1 ? 'traveller' : 'travellers'} together</small></div>
           <div><span>ACTIVITIES</span><strong>{itinerary.length.toString().padStart(2, '0')}</strong><small>{itinerary.length ? 'in your itinerary' : 'Nothing planned yet'}</small></div>
-          <div><span>SPENT</span><strong>{trip.defaultCurrency} 0</strong><small>No expenses yet</small></div>
+          <div><span>SPENT</span><strong>{trip.defaultCurrency} {new Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(totalSpent)}</strong><small>{expenses.length ? `${expenses.length} shared ${expenses.length === 1 ? 'expense' : 'expenses'}` : 'No expenses yet'}</small></div>
           <div><span>YOUR BALANCE</span><strong>{trip.defaultCurrency} 0</strong><small>All settled up</small></div>
         </section>
 
@@ -87,7 +92,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, onNavigate, on
             <aside className="detail-side-stack"><article className="detail-panel"><p className="panel-kicker">TRIP CREW</p><h2>Travelling together</h2>{members.slice(0, 2).map(member => <div className="current-member" key={member.userId}><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.role.toLowerCase()}</small></div></div>)}<button type="button" className="panel-link" onClick={() => setSection('members')}>See members →</button></article><article className="detail-panel money-panel"><p className="panel-kicker">SHARED MONEY</p><h2>Nothing to settle.</h2><p>Add expenses during the trip and SplitTrip will keep the group even.</p><button type="button" className="panel-link" onClick={() => setSection('expenses')}>See expenses →</button></article></aside>
           </div>}
           {section === 'itinerary' && <ItineraryWorkspace trip={trip} ideas={ideas} itinerary={itinerary} onCreateIdea={onCreateIdea} onVote={onVote} onSchedule={onSchedule} onUpdateSchedule={onUpdateSchedule} onRemoveSchedule={onRemoveSchedule} />}
-          {section === 'expenses' && <EmptyModule icon="₺" title="No shared expenses yet." copy="Equal, exact-amount, and percentage splits will live here." />}
+          {section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} />}
           {section === 'balances' && <EmptyModule icon="⇄" title="Everyone is settled up." copy="Balances and suggested transfers will appear after expenses are added." />}
           {section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}
         </section>
