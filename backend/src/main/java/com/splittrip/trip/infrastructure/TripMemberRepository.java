@@ -35,4 +35,14 @@ public interface TripMemberRepository extends JpaRepository<TripMember, UUID> {
     Optional<TripMember> findActiveMembership(
             @Param("tripId") UUID tripId,
             @Param("userId") UUID userId);
+
+    @Query("""
+            select membership from TripMember membership
+            join fetch membership.user
+            where membership.trip.id = :tripId and membership.status = 'ACTIVE'
+            order by membership.role desc, membership.joinedAt
+            """)
+    List<TripMember> findActiveByTripId(@Param("tripId") UUID tripId);
+
+    Optional<TripMember> findByTripIdAndUserId(UUID tripId, UUID userId);
 }

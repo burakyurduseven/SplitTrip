@@ -23,3 +23,14 @@ export type CreateTripInput = {
   endDate: string
   defaultCurrency: string
 }
+
+export type TripMember = {
+  userId: string
+  displayName: string
+  email: string
+  role: 'OWNER' | 'MEMBER'
+  joinedAt: string
+}
+
+export type CreatedInvitation = { token: string; expiresAt: string }
+export type InvitationPreview = { tripId: string; tripTitle: string; destination: string; expiresAt: string }

@@ -60,6 +60,30 @@ public class TripMember {
         return new TripMember(trip, user, TripMemberRole.OWNER, Instant.now());
     }
 
+    public static TripMember member(Trip trip, UserAccount user) {
+        return new TripMember(trip, user, TripMemberRole.MEMBER, Instant.now());
+    }
+
+    public void rejoin() {
+        status = TripMemberStatus.ACTIVE;
+        joinedAt = Instant.now();
+        leftAt = null;
+    }
+
+    public void leave() {
+        status = TripMemberStatus.LEFT;
+        leftAt = Instant.now();
+    }
+
+    public void remove() {
+        status = TripMemberStatus.REMOVED;
+        leftAt = Instant.now();
+    }
+
+    public UUID getId() { return id; }
     public Trip getTrip() { return trip; }
+    public UserAccount getUser() { return user; }
     public TripMemberRole getRole() { return role; }
+    public TripMemberStatus getStatus() { return status; }
+    public Instant getJoinedAt() { return joinedAt; }
 }

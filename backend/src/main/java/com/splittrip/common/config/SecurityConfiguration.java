@@ -21,6 +21,7 @@ import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.http.HttpMethod;
 
 @Configuration
 @EnableConfigurationProperties(SecurityProperties.class)
@@ -43,6 +44,7 @@ public class SecurityConfiguration {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/invitations/*").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)

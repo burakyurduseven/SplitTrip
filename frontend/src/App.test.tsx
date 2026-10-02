@@ -28,7 +28,9 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'user-1', displayName: 'Burak Yurduseven', email: 'burak@example.com', createdAt: '2026-10-02T00:00:00Z' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ([{ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }]) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }) }))
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ([{ userId: 'user-1', displayName: 'Burak Yurduseven', email: 'burak@example.com', role: 'OWNER', joinedAt: '2026-10-02T00:00:00Z' }]) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ token: 'secure-invite-token', expiresAt: '2026-10-09T00:00:00Z' }) }))
 
     render(<App />)
 
@@ -42,6 +44,9 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Aegean Summer' }))
     expect(await screen.findByText('YOUR TRIP')).toBeDefined()
     expect(window.location.pathname).toBe('/trips/trip-1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Invite people ＋' }))
+    expect(await screen.findByDisplayValue('http://localhost:3000/invitations/secure-invite-token')).toBeDefined()
   })
 
   it('refreshes an expired access token and retries trip creation', async () => {

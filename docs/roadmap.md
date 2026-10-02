@@ -27,9 +27,9 @@ Exit criterion: a user can register, sign in, and access their profile only with
 
 - [x] Trip and TripMember models
 - [x] Create, list, and view trips
-- [ ] Owner/member authorization
-- [ ] Secure invitation tokens
-- [ ] Invitation acceptance, leaving, and member removal
+- [x] Owner/member authorization
+- [x] Secure invitation tokens
+- [x] Invitation acceptance, leaving, and member removal
 - [x] Trip dashboard and creation interface
 - [x] Trip detail shell
 

@@ -1,11 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { Dashboard } from './Dashboard'
 import { TripsPage } from './TripsPage'
 import { TripDetailPage } from './TripDetailPage'
+import { InvitationPage } from './InvitationPage'
 import type { AppPage } from './AppNavigation'
-import type { AccessTokenResponse, ApiProblem, CreateTripInput, CurrentUser, Trip } from './types'
+import type { AccessTokenResponse, ApiProblem, CreateTripInput, CurrentUser, InvitationPreview, Trip, TripMember } from './types'
 
 type AuthMode = 'login' | 'register'
 
@@ -43,10 +44,17 @@ function App() {
   const [bootstrapping, setBootstrapping] = useState(true)
   const [page, setPage] = useState<AppPage | 'trip'>('home')
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
+  const [members, setMembers] = useState<TripMember[]>([])
+  const [invitation, setInvitation] = useState<InvitationPreview | null>(null)
+  const [invitationToken, setInvitationToken] = useState('')
+  const [joining, setJoining] = useState(false)
+  const [joinError, setJoinError] = useState('')
+  const refreshPromise = useRef<Promise<string> | null>(null)
 
   const endSession = () => {
     setAccessToken('')
     setTrips([])
+    setMembers([])
     setUser(null)
     setMode('login')
   }
@@ -61,16 +69,18 @@ function App() {
     let response = await send(accessToken)
     if (response.status !== 401) return response
 
-    const refreshResponse = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })
-    if (!refreshResponse.ok) {
-      endSession()
-      throw new Error('Your session has expired. Please log in again.')
-    }
-
     try {
-      const tokens = await refreshResponse.json() as AccessTokenResponse
-      setAccessToken(tokens.accessToken)
-      response = await send(tokens.accessToken)
+      if (!refreshPromise.current) {
+        refreshPromise.current = (async () => {
+          const refreshResponse = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })
+          if (!refreshResponse.ok) throw new Error('refresh failed')
+          const tokens = await refreshResponse.json() as AccessTokenResponse
+          setAccessToken(tokens.accessToken)
+          return tokens.accessToken
+        })().finally(() => { refreshPromise.current = null })
+      }
+      const refreshedToken = await refreshPromise.current
+      response = await send(refreshedToken)
       return response
     } catch {
       endSession()
@@ -93,9 +103,13 @@ function App() {
 
     const tripRoute = window.location.pathname.match(/^\/trips\/([0-9a-f-]+)$/i)
     if (tripRoute) {
-      const detailResponse = await fetch(`/api/v1/trips/${tripRoute[1]}`, { headers: authorization })
+      const [detailResponse, membersResponse] = await Promise.all([
+        fetch(`/api/v1/trips/${tripRoute[1]}`, { headers: authorization }),
+        fetch(`/api/v1/trips/${tripRoute[1]}/members`, { headers: authorization }),
+      ])
       if (detailResponse.ok) {
         setSelectedTrip(await detailResponse.json() as Trip)
+        if (membersResponse.ok) setMembers(await membersResponse.json() as TripMember[])
         setPage('trip')
       } else {
         window.history.replaceState({}, '', '/trips')
@@ -109,6 +123,16 @@ function App() {
   useEffect(() => {
     const restoreSession = async () => {
       try {
+        const invitationRoute = window.location.pathname.match(/^\/invitations\/([^/]+)$/)
+        if (invitationRoute) {
+          const token = invitationRoute[1]
+          const previewResponse = await fetch(`/api/v1/invitations/${token}`)
+          if (previewResponse.ok) {
+            setInvitation(await previewResponse.json() as InvitationPreview)
+            setInvitationToken(token)
+            setMode('login')
+          }
+        }
         const response = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })
         if (!response.ok) return
         const tokens = await response.json() as AccessTokenResponse
@@ -185,10 +209,70 @@ function App() {
     setPage('trip')
     window.history.pushState({}, '', `/trips/${trip.id}`)
     try {
-      const response = await authenticatedFetch(`/api/v1/trips/${trip.id}`)
-      if (response.ok) setSelectedTrip(await response.json() as Trip)
+      const [tripResponse, membersResponse] = await Promise.all([
+        authenticatedFetch(`/api/v1/trips/${trip.id}`),
+        authenticatedFetch(`/api/v1/trips/${trip.id}/members`),
+      ])
+      if (tripResponse.ok) setSelectedTrip(await tripResponse.json() as Trip)
+      if (membersResponse.ok) setMembers(await membersResponse.json() as TripMember[])
     } catch {
       // Keep the list representation visible if the detail refresh is temporarily unavailable.
+    }
+  }
+
+  const createInvitation = async () => {
+    if (!selectedTrip) throw new Error('No trip is selected.')
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/invitations`, { method: 'POST' })
+    if (!response.ok) {
+      const problem = await readProblem(response)
+      throw new Error(problem.detail ?? 'We could not create an invitation.')
+    }
+    const created = await response.json() as { token: string; expiresAt: string }
+    return { url: `${window.location.origin}/invitations/${created.token}`, expiresAt: created.expiresAt }
+  }
+
+  const removeMember = async (userId: string) => {
+    if (!selectedTrip) return
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/members/${userId}`, { method: 'DELETE' })
+    if (response.ok) setMembers(current => current.filter(member => member.userId !== userId))
+  }
+
+  const leaveTrip = async () => {
+    if (!selectedTrip) return
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/members/me`, { method: 'DELETE' })
+    if (response.ok) {
+      setTrips(current => current.filter(trip => trip.id !== selectedTrip.id))
+      setMembers([])
+      setSelectedTrip(null)
+      navigate('trips')
+    }
+  }
+
+  const acceptInvitation = async () => {
+    if (!invitation || !invitationToken) return
+    setJoining(true)
+    setJoinError('')
+    try {
+      const response = await authenticatedFetch(`/api/v1/invitations/${invitationToken}/accept`, { method: 'POST' })
+      if (!response.ok) {
+        const problem = await readProblem(response)
+        throw new Error(problem.detail ?? 'We could not join this trip.')
+      }
+      const [tripResponse, membersResponse] = await Promise.all([
+        authenticatedFetch(`/api/v1/trips/${invitation.tripId}`),
+        authenticatedFetch(`/api/v1/trips/${invitation.tripId}/members`),
+      ])
+      const joinedTrip = await tripResponse.json() as Trip
+      setTrips(current => current.some(trip => trip.id === joinedTrip.id) ? current : [joinedTrip, ...current])
+      setSelectedTrip(joinedTrip)
+      if (membersResponse.ok) setMembers(await membersResponse.json() as TripMember[])
+      setInvitation(null)
+      window.history.replaceState({}, '', `/trips/${joinedTrip.id}`)
+      setPage('trip')
+    } catch (reason) {
+      setJoinError(reason instanceof Error ? reason.message : 'We could not join this trip.')
+    } finally {
+      setJoining(false)
     }
   }
 
@@ -205,8 +289,9 @@ function App() {
   }
 
   if (user) {
+    if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
     const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip) => void openTrip(trip), onCreateTrip: createTrip, onLogout: logout }
-    if (page === 'trip' && selectedTrip) return <TripDetailPage user={user} trip={selectedTrip} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onLogout={logout} />
+    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

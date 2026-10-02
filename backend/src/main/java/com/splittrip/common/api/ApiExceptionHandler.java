@@ -17,9 +17,45 @@ import com.splittrip.auth.application.InvalidCredentialsException;
 import com.splittrip.auth.application.InvalidRefreshTokenException;
 import com.splittrip.trip.application.InvalidTripDateRangeException;
 import com.splittrip.trip.application.TripNotFoundException;
+import com.splittrip.trip.application.InvitationNotFoundException;
+import com.splittrip.trip.application.MembershipConflictException;
+import com.splittrip.trip.application.TripAccessDeniedException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(InvitationNotFoundException.class)
+    ResponseEntity<ProblemDetail> handleInvitationNotFound(
+            InvitationNotFoundException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+        problem.setTitle("Invitation not found");
+        problem.setType(URI.create("https://splittrip.app/problems/invitation-not-found"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(TripAccessDeniedException.class)
+    ResponseEntity<ProblemDetail> handleTripAccessDenied(
+            TripAccessDeniedException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.FORBIDDEN, exception.getMessage());
+        problem.setTitle("Trip access denied");
+        problem.setType(URI.create("https://splittrip.app/problems/trip-access-denied"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problem);
+    }
+
+    @ExceptionHandler(MembershipConflictException.class)
+    ResponseEntity<ProblemDetail> handleMembershipConflict(
+            MembershipConflictException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setTitle("Membership conflict");
+        problem.setType(URI.create("https://splittrip.app/problems/membership-conflict"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
 
     @ExceptionHandler(TripNotFoundException.class)
     ResponseEntity<ProblemDetail> handleTripNotFound(
