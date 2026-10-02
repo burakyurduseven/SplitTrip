@@ -7,19 +7,19 @@ Each phase is divided into small vertical slices that are completed with working
 - [x] MVP scope and roles
 - [x] Initial domain model
 - [x] Design system and interface direction
-- [ ] API contract conventions
+- [x] API contract conventions
 - [ ] Incorporate wireframe feedback
 
 ## Phase 1 — Identity and users
 
-- User migration and entity
-- Registration use case and API
-- BCrypt password hashing and validation
-- Sign-in and short-lived access JWT
-- Secure refresh and sign-out approach
-- Profile endpoint
-- Registration and sign-in screens
-- Unit and integration tests
+- [x] User migration and entity
+- [x] Registration use case and API
+- [x] BCrypt password hashing and validation
+- [ ] Sign-in and short-lived access JWT
+- [ ] Secure refresh and sign-out approach
+- [ ] Profile endpoint
+- [ ] Registration and sign-in screens
+- [x] Registration unit and integration tests
 
 Exit criterion: a user can register, sign in, and access their profile only with a valid session.
 

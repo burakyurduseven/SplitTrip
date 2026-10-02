@@ -58,5 +58,6 @@ npm run build
 - Initial domain model: `docs/domain-model.md`
 - Design system: `docs/design-system.md`
 - Development roadmap: `docs/roadmap.md`
+- API conventions: `docs/api-conventions.md`
 - Architecture: `docs/architecture.md`
 - Development environment: `docs/development-environment.md`
