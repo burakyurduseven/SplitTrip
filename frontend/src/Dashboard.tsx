@@ -1,22 +1,24 @@
 import { useMemo, useState } from 'react'
 
+import { AppNavigation } from './AppNavigation'
 import { CreateTripDialog } from './CreateTripDialog'
+import type { AppPage } from './AppNavigation'
 import type { CreateTripInput, CurrentUser, Trip } from './types'
 
 type Props = {
   user: CurrentUser
   trips: Trip[]
+  onNavigate: (page: AppPage) => void
   onCreateTrip: (input: CreateTripInput) => Promise<void>
   onLogout: () => Promise<void>
 }
 
-const navItems = ['Home', 'Trips', 'Itinerary', 'Expenses', 'Balances']
 const dashboardOpenedAt = Date.now()
 
 const shortDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(`${date}T00:00:00`))
 const tripDates = (trip: Trip) => `${shortDate(trip.startDate)} – ${shortDate(trip.endDate)}`
 
-export function Dashboard({ user, trips, onCreateTrip, onLogout }: Props) {
+export function Dashboard({ user, trips, onNavigate, onCreateTrip, onLogout }: Props) {
   const [creating, setCreating] = useState(false)
   const nextTrip = useMemo(() => trips.find(trip => trip.status === 'ACTIVE') ?? trips[0], [trips])
   const otherTrips = trips.filter(trip => trip.id !== nextTrip?.id)
@@ -24,12 +26,7 @@ export function Dashboard({ user, trips, onCreateTrip, onLogout }: Props) {
 
   return (
     <div className="dashboard-shell">
-      <aside className="side-nav">
-        <div className="dashboard-brand"><span className="brand-symbol">S</span><strong>SplitTrip</strong></div>
-        <nav aria-label="Main navigation">{navItems.map((item, index) => <button key={item} className={index === 0 ? 'active' : ''} type="button"><span>{['⌂','▢','⌁','▤','▥'][index]}</span>{item}</button>)}</nav>
-        <div className="side-note"><span>✦</span><p>Better trips.<br />Together.</p></div>
-        <button className="logout-button" type="button" onClick={() => void onLogout()}>Log out <span>↗</span></button>
-      </aside>
+      <AppNavigation activePage="home" onNavigate={onNavigate} onCreateTrip={() => setCreating(true)} onLogout={onLogout} />
 
       <main className="dashboard-main">
         <header className="dashboard-header">
@@ -63,7 +60,6 @@ export function Dashboard({ user, trips, onCreateTrip, onLogout }: Props) {
         </section>
       </main>
 
-      <nav className="mobile-bottom-nav" aria-label="Mobile navigation">{['Trips','Itinerary','Create','Expenses','Balances'].map(item => <button key={item} type="button" className={item === 'Create' ? 'mobile-create' : ''} onClick={() => item === 'Create' && setCreating(true)}><span>{item === 'Create' ? '+' : item[0]}</span><small>{item}</small></button>)}</nav>
       <CreateTripDialog open={creating} onClose={() => setCreating(false)} onCreate={onCreateTrip} />
     </div>
   )

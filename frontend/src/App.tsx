@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { Dashboard } from './Dashboard'
+import { TripsPage } from './TripsPage'
+import type { AppPage } from './AppNavigation'
 import type { AccessTokenResponse, ApiProblem, CreateTripInput, CurrentUser, Trip } from './types'
 
 type AuthMode = 'login' | 'register'
@@ -38,6 +40,7 @@ function App() {
   const [accessToken, setAccessToken] = useState('')
   const [trips, setTrips] = useState<Trip[]>([])
   const [bootstrapping, setBootstrapping] = useState(true)
+  const [page, setPage] = useState<AppPage>('home')
 
   const endSession = () => {
     setAccessToken('')
@@ -168,7 +171,8 @@ function App() {
   }
 
   if (user) {
-    return <Dashboard user={user} trips={trips} onCreateTrip={createTrip} onLogout={logout} />
+    const pageProps = { user, trips, onNavigate: setPage, onCreateTrip: createTrip, onLogout: logout }
+    return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 
   return (

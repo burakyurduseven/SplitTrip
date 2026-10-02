@@ -33,6 +33,10 @@ describe('App', () => {
 
     expect(await screen.findByRole('heading', { name: 'Good morning, Burak.' })).toBeDefined()
     expect(screen.getByRole('heading', { name: 'Aegean Summer' })).toBeDefined()
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Trips/ }))
+    expect(screen.getByRole('heading', { name: 'Your trips' })).toBeDefined()
+    expect(screen.getByRole('tab', { name: /Upcoming/ })).toBeDefined()
   })
 
   it('refreshes an expired access token and retries trip creation', async () => {
