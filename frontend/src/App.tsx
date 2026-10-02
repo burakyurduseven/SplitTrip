@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 
 import { Dashboard } from './Dashboard'
 import { TripsPage } from './TripsPage'
+import { TripDetailPage } from './TripDetailPage'
 import type { AppPage } from './AppNavigation'
 import type { AccessTokenResponse, ApiProblem, CreateTripInput, CurrentUser, Trip } from './types'
 
@@ -40,7 +41,8 @@ function App() {
   const [accessToken, setAccessToken] = useState('')
   const [trips, setTrips] = useState<Trip[]>([])
   const [bootstrapping, setBootstrapping] = useState(true)
-  const [page, setPage] = useState<AppPage>('home')
+  const [page, setPage] = useState<AppPage | 'trip'>('home')
+  const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
 
   const endSession = () => {
     setAccessToken('')
@@ -84,9 +86,24 @@ function App() {
     ])
     if (!profileResponse.ok) throw await readProblem(profileResponse)
     if (!tripsResponse.ok) throw await readProblem(tripsResponse)
+    const loadedTrips = await tripsResponse.json() as Trip[]
     setAccessToken(token)
     setUser(await profileResponse.json() as CurrentUser)
-    setTrips(await tripsResponse.json() as Trip[])
+    setTrips(loadedTrips)
+
+    const tripRoute = window.location.pathname.match(/^\/trips\/([0-9a-f-]+)$/i)
+    if (tripRoute) {
+      const detailResponse = await fetch(`/api/v1/trips/${tripRoute[1]}`, { headers: authorization })
+      if (detailResponse.ok) {
+        setSelectedTrip(await detailResponse.json() as Trip)
+        setPage('trip')
+      } else {
+        window.history.replaceState({}, '', '/trips')
+        setPage('trips')
+      }
+    } else if (window.location.pathname === '/trips') {
+      setPage('trips')
+    }
   }
 
   useEffect(() => {
@@ -158,6 +175,23 @@ function App() {
     setTrips(current => [trip, ...current])
   }
 
+  const navigate = (nextPage: AppPage) => {
+    window.history.pushState({}, '', nextPage === 'home' ? '/' : '/trips')
+    setPage(nextPage)
+  }
+
+  const openTrip = async (trip: Trip) => {
+    setSelectedTrip(trip)
+    setPage('trip')
+    window.history.pushState({}, '', `/trips/${trip.id}`)
+    try {
+      const response = await authenticatedFetch(`/api/v1/trips/${trip.id}`)
+      if (response.ok) setSelectedTrip(await response.json() as Trip)
+    } catch {
+      // Keep the list representation visible if the detail refresh is temporarily unavailable.
+    }
+  }
+
   const logout = async () => {
     try {
       await fetch('/api/v1/auth/logout', { method: 'DELETE', credentials: 'include' })
@@ -171,7 +205,8 @@ function App() {
   }
 
   if (user) {
-    const pageProps = { user, trips, onNavigate: setPage, onCreateTrip: createTrip, onLogout: logout }
+    const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip) => void openTrip(trip), onCreateTrip: createTrip, onLogout: logout }
+    if (page === 'trip' && selectedTrip) return <TripDetailPage user={user} trip={selectedTrip} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

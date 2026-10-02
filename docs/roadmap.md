@@ -31,7 +31,7 @@ Exit criterion: a user can register, sign in, and access their profile only with
 - [ ] Secure invitation tokens
 - [ ] Invitation acceptance, leaving, and member removal
 - [x] Trip dashboard and creation interface
-- [ ] Trip detail shell
+- [x] Trip detail shell
 
 Exit criterion: one user can create a trip and securely invite another user to join.
 

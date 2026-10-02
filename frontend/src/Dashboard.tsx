@@ -9,6 +9,7 @@ type Props = {
   user: CurrentUser
   trips: Trip[]
   onNavigate: (page: AppPage) => void
+  onOpenTrip: (trip: Trip) => void
   onCreateTrip: (input: CreateTripInput) => Promise<void>
   onLogout: () => Promise<void>
 }
@@ -18,7 +19,7 @@ const dashboardOpenedAt = Date.now()
 const shortDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(`${date}T00:00:00`))
 const tripDates = (trip: Trip) => `${shortDate(trip.startDate)} – ${shortDate(trip.endDate)}`
 
-export function Dashboard({ user, trips, onNavigate, onCreateTrip, onLogout }: Props) {
+export function Dashboard({ user, trips, onNavigate, onOpenTrip, onCreateTrip, onLogout }: Props) {
   const [creating, setCreating] = useState(false)
   const nextTrip = useMemo(() => trips.find(trip => trip.status === 'ACTIVE') ?? trips[0], [trips])
   const otherTrips = trips.filter(trip => trip.id !== nextTrip?.id)
@@ -39,7 +40,7 @@ export function Dashboard({ user, trips, onNavigate, onCreateTrip, onLogout }: P
             <div className="adventure-route" aria-hidden="true"><i /><i /><i /><svg viewBox="0 0 700 180"><path d="M-20 155C108 39 177 184 302 98S474 25 720 99" /></svg></div>
             <div className="adventure-copy"><p>YOUR NEXT ADVENTURE</p><h2>{nextTrip.title}</h2><div className="trip-meta"><span>⌖ {nextTrip.destination}</span><span>□ {tripDates(nextTrip)}</span><span className="role-badge">{nextTrip.currentUserRole}</span></div></div>
             <div className="countdown-card"><strong>{Math.max(0, Math.ceil((new Date(`${nextTrip.startDate}T00:00:00`).getTime() - dashboardOpenedAt) / 86400000))}</strong><span>days to go</span></div>
-            <button type="button" className="hero-button">View trip <span>→</span></button>
+            <button type="button" className="hero-button" onClick={() => onOpenTrip(nextTrip)}>View trip <span>→</span></button>
           </section>
         ) : (
           <section className="adventure-card empty-adventure"><div className="adventure-copy"><p>YOUR NEXT ADVENTURE</p><h2>There is a whole world waiting.</h2><div className="trip-meta"><span>Create your first trip and bring your favorite people along.</span></div></div><button type="button" className="hero-button" onClick={() => setCreating(true)}>Create trip <span>＋</span></button></section>
@@ -54,7 +55,7 @@ export function Dashboard({ user, trips, onNavigate, onCreateTrip, onLogout }: P
         <section className="trip-collection">
           <div className="section-heading"><div><p>YOUR COLLECTION</p><h2>More adventures</h2></div><button type="button" onClick={() => setCreating(true)}>＋ Create trip</button></div>
           <div className="trip-card-row">
-            {otherTrips.map((trip, index) => <article className={`mini-trip-card tone-${index % 3}`} key={trip.id}><span>{trip.currentUserRole}</span><h3>{trip.title}</h3><p>⌖ {trip.destination}</p><footer><small>{tripDates(trip)}</small><button aria-label={`Open ${trip.title}`} type="button">→</button></footer></article>)}
+            {otherTrips.map((trip, index) => <article className={`mini-trip-card tone-${index % 3}`} key={trip.id}><span>{trip.currentUserRole}</span><h3>{trip.title}</h3><p>⌖ {trip.destination}</p><footer><small>{tripDates(trip)}</small><button aria-label={`Open ${trip.title}`} type="button" onClick={() => onOpenTrip(trip)}>→</button></footer></article>)}
             {otherTrips.length === 0 && <button type="button" className="create-card" onClick={() => setCreating(true)}><span>＋</span><strong>Create another story</strong><small>New people. New places. Same great vibes.</small></button>}
           </div>
         </section>

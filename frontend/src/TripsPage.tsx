@@ -9,6 +9,7 @@ type Props = {
   user: CurrentUser
   trips: Trip[]
   onNavigate: (page: AppPage) => void
+  onOpenTrip: (trip: Trip) => void
   onCreateTrip: (input: CreateTripInput) => Promise<void>
   onLogout: () => Promise<void>
 }
@@ -21,7 +22,7 @@ const dateRange = (trip: Trip) => {
   return `${format(trip.startDate)} – ${format(trip.endDate)}`
 }
 
-export function TripsPage({ user, trips, onNavigate, onCreateTrip, onLogout }: Props) {
+export function TripsPage({ user, trips, onNavigate, onOpenTrip, onCreateTrip, onLogout }: Props) {
   const [filter, setFilter] = useState<Filter>('all')
   const [creating, setCreating] = useState(false)
   const counts = useMemo(() => ({
@@ -54,7 +55,7 @@ export function TripsPage({ user, trips, onNavigate, onCreateTrip, onLogout }: P
           {visibleTrips.length > 0 ? <div className="trips-grid">
             {visibleTrips.map((trip, index) => <article className={`journey-card journey-tone-${index % 3}`} key={trip.id}>
               <div className="journey-card-art" aria-hidden="true"><span>{String(index + 1).padStart(2, '0')}</span><i /><i /><svg viewBox="0 0 500 130"><path d="M-10 95C80 15 140 128 238 61s154-22 280 29" /></svg></div>
-              <div className="journey-card-body"><div className="journey-card-top"><span>{trip.currentUserRole}</span><small>{trip.status}</small></div><h2>{trip.title}</h2><p>⌖ {trip.destination}</p><footer><div><span>TRAVEL DATES</span><strong>{dateRange(trip)}</strong></div><button type="button" aria-label={`Open ${trip.title}`}>→</button></footer></div>
+              <div className="journey-card-body"><div className="journey-card-top"><span>{trip.currentUserRole}</span><small>{trip.status}</small></div><h2>{trip.title}</h2><p>⌖ {trip.destination}</p><footer><div><span>TRAVEL DATES</span><strong>{dateRange(trip)}</strong></div><button type="button" aria-label={`Open ${trip.title}`} onClick={() => onOpenTrip(trip)}>→</button></footer></div>
             </article>)}
             <button type="button" className="journey-create-card" onClick={() => setCreating(true)}><span>＋</span><strong>Start a new story</strong><small>Choose a place and invite your people.</small></button>
           </div> : <div className="trips-empty"><span>⌁</span><h2>No {filter === 'all' ? '' : `${filter} `}trips yet.</h2><p>Your next shared adventure can start right here.</p><button type="button" onClick={() => setCreating(true)}>Create a trip →</button></div>}

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
 
 beforeEach(() => vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false })))
-afterEach(() => { cleanup(); vi.unstubAllGlobals() })
+afterEach(() => { cleanup(); window.history.replaceState({}, '', '/'); vi.unstubAllGlobals() })
 
 describe('App', () => {
   it('renders the registration experience', async () => {
@@ -27,7 +27,8 @@ describe('App', () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'user-1', displayName: 'Burak Yurduseven', email: 'burak@example.com', createdAt: '2026-10-02T00:00:00Z' }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ([{ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }]) }))
+      .mockResolvedValueOnce({ ok: true, json: async () => ([{ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }]) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }) }))
 
     render(<App />)
 
@@ -37,6 +38,10 @@ describe('App', () => {
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Trips/ }))
     expect(screen.getByRole('heading', { name: 'Your trips' })).toBeDefined()
     expect(screen.getByRole('tab', { name: /Upcoming/ })).toBeDefined()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Aegean Summer' }))
+    expect(await screen.findByText('YOUR TRIP')).toBeDefined()
+    expect(window.location.pathname).toBe('/trips/trip-1')
   })
 
   it('refreshes an expired access token and retries trip creation', async () => {
