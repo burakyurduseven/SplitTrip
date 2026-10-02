@@ -18,7 +18,7 @@ Each phase is divided into small vertical slices that are completed with working
 - [x] Sign-in and short-lived access JWT
 - [x] Secure refresh and sign-out approach
 - [x] Profile endpoint
-- [ ] Registration and sign-in screens
+- [x] Registration and sign-in screens
 - [x] Registration and authentication backend tests
 
 Exit criterion: a user can register, sign in, and access their profile only with a valid session.

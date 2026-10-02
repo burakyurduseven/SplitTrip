@@ -1,12 +1,24 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
 
 import App from './App'
 
+afterEach(cleanup)
+
 describe('App', () => {
-  it('renders the product name', () => {
+  it('renders the registration experience', () => {
     render(<App />)
 
-    expect(screen.getByText('SplitTrip')).toBeDefined()
+    expect(screen.getAllByText('SplitTrip').length).toBeGreaterThan(0)
+    expect(screen.getByRole('heading', { name: 'Yol arkadaşlarına katıl.' })).toBeDefined()
+  })
+
+  it('switches to sign in mode', () => {
+    render(<App />)
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Giriş yap' }))
+
+    expect(screen.getByRole('heading', { name: 'Kaldığın yerden devam et.' })).toBeDefined()
+    expect(screen.queryByLabelText('Adın')).toBeNull()
   })
 })
