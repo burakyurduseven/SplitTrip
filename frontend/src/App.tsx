@@ -6,7 +6,7 @@ import { TripsPage } from './TripsPage'
 import { TripDetailPage } from './TripDetailPage'
 import { InvitationPage } from './InvitationPage'
 import type { AppPage } from './AppNavigation'
-import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, CreateActivityIdeaInput, CreateTripInput, CurrentUser, InvitationPreview, ItineraryItem, ScheduleActivityInput, Trip, TripMember } from './types'
+import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, CreateActivityIdeaInput, CreateTripInput, CurrentUser, InvitationPreview, ItineraryItem, ScheduleActivityInput, Trip, TripMember, UpdateScheduleInput } from './types'
 
 type AuthMode = 'login' | 'register'
 
@@ -275,6 +275,23 @@ function App() {
     return item
   }
 
+  const updateScheduledActivity = async (itemId: string, input: UpdateScheduleInput) => {
+    if (!selectedTrip) throw new Error('No trip is selected.')
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/itinerary/${itemId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) })
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not update this activity.') }
+    const updated = await response.json() as ItineraryItem
+    setItinerary(current => current.map(item => item.id === updated.id ? updated : item).sort((left, right) => `${left.scheduledDate}${left.startTime}`.localeCompare(`${right.scheduledDate}${right.startTime}`)))
+    return updated
+  }
+
+  const removeScheduledActivity = async (itemId: string, ideaId: string) => {
+    if (!selectedTrip) return
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/itinerary/${itemId}`, { method: 'DELETE' })
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not remove this activity.') }
+    setItinerary(current => current.filter(item => item.id !== itemId))
+    setIdeas(current => current.map(idea => idea.id === ideaId ? { ...idea, status: 'PROPOSED' } : idea))
+  }
+
   const removeMember = async (userId: string) => {
     if (!selectedTrip) return
     const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/members/${userId}`, { method: 'DELETE' })
@@ -335,7 +352,7 @@ function App() {
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
     const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip) => void openTrip(trip), onCreateTrip: createTrip, onLogout: logout }
-    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
+    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

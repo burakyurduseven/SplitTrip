@@ -266,6 +266,39 @@ class TripIntegrationTest {
                 .andExpect(jsonPath("$[0].title").value("Boat tour"));
     }
 
+    @Test
+    void updatesAndRemovesAScheduledActivity() throws Exception {
+        var accessToken = registerAndLogin("ada@example.com", "Ada Lovelace");
+        var tripId = createTrip(accessToken, "Aegean Summer");
+        var ideaId = createIdea(accessToken, tripId, "Boat tour");
+        var scheduled = mockMvc.perform(post("/api/v1/trips/{tripId}/itinerary", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleBody(ideaId, "10:00", "12:00")))
+                .andExpect(status().isOk()).andReturn();
+        String itemId = JsonPath.read(scheduled.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/v1/trips/{tripId}/itinerary/{itemId}", tripId, itemId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"scheduledDate":"2027-07-14","startTime":"14:30","endTime":"16:00","note":"Meet outside"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.scheduledDate").value("2027-07-14"))
+                .andExpect(jsonPath("$.startTime").value("14:30:00"))
+                .andExpect(jsonPath("$.note").value("Meet outside"));
+
+        mockMvc.perform(delete("/api/v1/trips/{tripId}/itinerary/{itemId}", tripId, itemId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+                .andExpect(status().isNoContent());
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/activity-ideas", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].status").value("PROPOSED"));
+    }
+
     private String createIdea(String accessToken, UUID tripId, String title) throws Exception {
         var result = mockMvc.perform(post("/api/v1/trips/{tripId}/activity-ideas", tripId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))

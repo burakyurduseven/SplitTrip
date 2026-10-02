@@ -59,6 +59,19 @@ public class ActivityController {
         return service.schedule(tripId, request.activityIdeaId(), userId(jwt), request.scheduledDate(), request.startTime(), request.endTime(), request.note());
     }
 
+    @PutMapping("/itinerary/{itemId}")
+    @Operation(summary = "Update a scheduled activity")
+    ItineraryView updateSchedule(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID tripId, @PathVariable UUID itemId,
+            @Valid @RequestBody UpdateScheduleRequest request) {
+        return service.updateSchedule(tripId, itemId, userId(jwt), request.scheduledDate(), request.startTime(), request.endTime(), request.note());
+    }
+
+    @DeleteMapping("/itinerary/{itemId}")
+    @Operation(summary = "Return a scheduled activity to the idea pool")
+    ResponseEntity<Void> removeFromSchedule(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID tripId, @PathVariable UUID itemId) {
+        service.removeFromSchedule(tripId, itemId, userId(jwt)); return ResponseEntity.noContent().build();
+    }
+
     private UUID userId(Jwt jwt) { return UUID.fromString(jwt.getSubject()); }
 
     public record CreateIdeaRequest(@NotBlank @Size(max=120) String title, @Size(max=1000) String description,
@@ -66,4 +79,6 @@ public class ActivityController {
     public record VoteRequest(@NotNull ActivityVoteValue value) {}
     public record ScheduleRequest(@NotNull UUID activityIdeaId, @NotNull LocalDate scheduledDate,
             @NotNull LocalTime startTime, @NotNull LocalTime endTime, @Size(max=500) String note) {}
+    public record UpdateScheduleRequest(@NotNull LocalDate scheduledDate, @NotNull LocalTime startTime,
+            @NotNull LocalTime endTime, @Size(max=500) String note) {}
 }

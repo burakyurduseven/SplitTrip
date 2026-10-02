@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 
-import type { ActivityIdea, ActivityVoteValue, CreateActivityIdeaInput, ItineraryItem, ScheduleActivityInput, Trip } from './types'
+import type { ActivityIdea, ActivityVoteValue, CreateActivityIdeaInput, ItineraryItem, ScheduleActivityInput, Trip, UpdateScheduleInput } from './types'
 
 type Props = {
   trip: Trip
@@ -10,6 +10,8 @@ type Props = {
   onCreateIdea: (input: CreateActivityIdeaInput) => Promise<void>
   onVote: (ideaId: string, vote: ActivityVoteValue | null) => Promise<void>
   onSchedule: (input: ScheduleActivityInput) => Promise<ItineraryItem>
+  onUpdateSchedule: (itemId: string, input: UpdateScheduleInput) => Promise<ItineraryItem>
+  onRemoveSchedule: (itemId: string, ideaId: string) => Promise<void>
 }
 
 const pad = (value: number) => value.toString().padStart(2, '0')
@@ -22,7 +24,7 @@ const readableTime = (time: string) => time.slice(0, 5)
 const dateLabel = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(`${date}T12:00:00`))
 const weekdayLabel = (date: string) => new Intl.DateTimeFormat('en', { weekday: 'short' }).format(new Date(`${date}T12:00:00`))
 
-export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVote, onSchedule }: Props) {
+export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule }: Props) {
   const dates = useMemo(() => {
     const values: string[] = []
     const current = new Date(`${trip.startDate}T12:00:00`)
@@ -37,15 +39,29 @@ export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVot
   const [selectedDate, setSelectedDate] = useState(dates[0])
   const [ideaFormOpen, setIdeaFormOpen] = useState(false)
   const [scheduleIdea, setScheduleIdea] = useState<ActivityIdea | null>(null)
+  const [editingItem, setEditingItem] = useState<ItineraryItem | null>(null)
   const [scheduleStart, setScheduleStart] = useState('09:00')
   const [scheduleEnd, setScheduleEnd] = useState('11:00')
   const [formError, setFormError] = useState('')
   const [notice, setNotice] = useState('')
 
   const openScheduler = (idea: ActivityIdea, start = '09:00') => {
+    setEditingItem(null)
     setScheduleIdea(idea)
     setScheduleStart(start)
     setScheduleEnd(addMinutes(start, idea.estimatedDurationMinutes))
+    setFormError('')
+    setNotice('')
+  }
+
+  const openEditor = (item: ItineraryItem) => {
+    const idea = ideas.find(candidate => candidate.id === item.activityIdeaId)
+    if (!idea) return
+    setEditingItem(item)
+    setScheduleIdea(idea)
+    setSelectedDate(item.scheduledDate)
+    setScheduleStart(readableTime(item.startTime))
+    setScheduleEnd(readableTime(item.endTime))
     setFormError('')
     setNotice('')
   }
@@ -79,18 +95,34 @@ export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVot
     setFormError('')
     const data = new FormData(event.currentTarget)
     try {
-      const item = await onSchedule({
-        activityIdeaId: scheduleIdea.id,
+      const scheduleInput = {
         scheduledDate: String(data.get('date')),
         startTime: String(data.get('startTime')),
         endTime: String(data.get('endTime')),
         note: String(data.get('note')),
-      })
+      }
+      const item = editingItem
+        ? await onUpdateSchedule(editingItem.id, scheduleInput)
+        : await onSchedule({ activityIdeaId: scheduleIdea.id, ...scheduleInput })
       setScheduleIdea(null)
+      setEditingItem(null)
       setSelectedDate(item.scheduledDate)
-      setNotice(item.overlapsExistingItem ? 'Added with a time conflict — you can keep both for now.' : 'Activity added to the itinerary.')
+      setNotice(item.overlapsExistingItem ? 'Saved with a time conflict — you can keep both for now.' : editingItem ? 'Itinerary updated.' : 'Activity added to the itinerary.')
     } catch (reason) {
       setFormError(reason instanceof Error ? reason.message : 'We could not schedule this activity.')
+    }
+  }
+
+  const removeFromSchedule = async () => {
+    if (!editingItem || !scheduleIdea) return
+    setFormError('')
+    try {
+      await onRemoveSchedule(editingItem.id, scheduleIdea.id)
+      setScheduleIdea(null)
+      setEditingItem(null)
+      setNotice('Activity returned to the idea pool.')
+    } catch (reason) {
+      setFormError(reason instanceof Error ? reason.message : 'We could not remove this activity.')
     }
   }
 
@@ -115,13 +147,13 @@ export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVot
       <div className="timeline">
         {slots.map(time => {
           const items = dayItems.filter(item => readableTime(item.startTime) === time)
-          return <div className="time-row" key={time} onDragOver={event => event.preventDefault()} onDrop={event => dropIdea(event, time)}><time>{time}</time><div className="time-dropzone">{items.map(item => <article key={item.id}><b>{item.title}</b><span>{readableTime(item.startTime)}–{readableTime(item.endTime)}{item.location ? ` · ${item.location}` : ''}</span>{item.note && <small>{item.note}</small>}</article>)}</div></div>
+          return <div className="time-row" key={time} onDragOver={event => event.preventDefault()} onDrop={event => dropIdea(event, time)}><time>{time}</time><div className="time-dropzone">{items.map(item => <article key={item.id}><div><b>{item.title}</b><button type="button" aria-label={`Edit ${item.title}`} onClick={() => openEditor(item)}>Edit</button></div><span>{readableTime(item.startTime)}–{readableTime(item.endTime)}{item.location ? ` · ${item.location}` : ''}</span>{item.note && <small>{item.note}</small>}</article>)}</div></div>
         })}
       </div>
     </section>
 
     {ideaFormOpen && <div className="dialog-backdrop" role="presentation"><section className="activity-dialog" role="dialog" aria-modal="true" aria-labelledby="idea-dialog-title"><button className="dialog-close" type="button" aria-label="Close" onClick={() => setIdeaFormOpen(false)}>×</button><p>ADD TO THE MIX</p><h2 id="idea-dialog-title">What should we do?</h2><form onSubmit={createIdea}><label>Activity name<input name="title" required maxLength={120} placeholder="Sunset boat tour" /></label><div className="activity-form-row"><label>Location <span>optional</span><input name="location" maxLength={160} placeholder="Old harbour" /></label><label>Estimated duration<select name="duration" defaultValue="120"><option value="30">30 minutes</option><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option></select></label></div><label>Why this one? <span>optional</span><textarea name="description" maxLength={500} placeholder="Share a detail with the crew..." /></label>{formError && <p className="form-error" role="alert">{formError}</p>}<button className="activity-submit" type="submit">Share idea →</button></form></section></div>}
 
-    {scheduleIdea && <div className="dialog-backdrop" role="presentation"><section className="activity-dialog schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="schedule-dialog-title"><button className="dialog-close" type="button" aria-label="Close" onClick={() => setScheduleIdea(null)}>×</button><p>MAKE IT REAL</p><h2 id="schedule-dialog-title">Place it on the map.</h2><div className="schedule-summary"><strong>{scheduleIdea.title}</strong><span>{scheduleIdea.estimatedDurationMinutes} min suggested</span></div><form onSubmit={schedule}><label>Date<select name="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option value={date} key={date}>{dateLabel(date)}</option>)}</select></label><div className="activity-form-row"><label>Starts<input name="startTime" type="time" value={scheduleStart} onChange={event => { setScheduleStart(event.target.value); setScheduleEnd(addMinutes(event.target.value, scheduleIdea.estimatedDurationMinutes)) }} required /></label><label>Ends<input name="endTime" type="time" value={scheduleEnd} onChange={event => setScheduleEnd(event.target.value)} required /></label></div><label>Plan note <span>optional</span><textarea name="note" maxLength={500} placeholder="Meet by the entrance..." /></label>{formError && <p className="form-error" role="alert">{formError}</p>}<button className="activity-submit" type="submit">Add to itinerary →</button></form></section></div>}
+    {scheduleIdea && <div className="dialog-backdrop" role="presentation"><section className="activity-dialog schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="schedule-dialog-title"><button className="dialog-close" type="button" aria-label="Close" onClick={() => { setScheduleIdea(null); setEditingItem(null) }}>×</button><p>{editingItem ? 'CHANGE OF PLANS' : 'MAKE IT REAL'}</p><h2 id="schedule-dialog-title">{editingItem ? 'Adjust the itinerary.' : 'Place it on the map.'}</h2><div className="schedule-summary"><strong>{scheduleIdea.title}</strong><span>{scheduleIdea.estimatedDurationMinutes} min suggested</span></div><form onSubmit={schedule}><label>Date<select name="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option value={date} key={date}>{dateLabel(date)}</option>)}</select></label><div className="activity-form-row"><label>Starts<input name="startTime" type="time" value={scheduleStart} onChange={event => { setScheduleStart(event.target.value); setScheduleEnd(addMinutes(event.target.value, scheduleIdea.estimatedDurationMinutes)) }} required /></label><label>Ends<input name="endTime" type="time" value={scheduleEnd} onChange={event => setScheduleEnd(event.target.value)} required /></label></div><label>Plan note <span>optional</span><textarea name="note" maxLength={500} defaultValue={editingItem?.note ?? ''} placeholder="Meet by the entrance..." /></label>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="schedule-actions">{editingItem && <button className="remove-schedule" type="button" onClick={() => void removeFromSchedule()}>Return to idea pool</button>}<button className="activity-submit" type="submit">{editingItem ? 'Save changes →' : 'Add to itinerary →'}</button></div></form></section></div>}
   </div>
 }

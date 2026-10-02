@@ -84,6 +84,34 @@ public class ActivityService {
         return itineraryRepository.findByTripIdOrdered(tripId).stream().map(item -> toItineraryView(item, false)).toList();
     }
 
+    @Transactional
+    public ItineraryView updateSchedule(UUID tripId, UUID itemId, UUID userId, LocalDate date,
+            LocalTime startTime, LocalTime endTime, String note) {
+        var membership = requireMembership(tripId, userId);
+        validateSchedule(membership.getTrip(), date, startTime, endTime);
+        var item = itineraryRepository.findByIdAndTripId(itemId, tripId)
+                .orElseThrow(() -> new InvalidItineraryException("Scheduled activity not found."));
+        var overlaps = itineraryRepository.hasOverlapExcluding(tripId, itemId, date, startTime, endTime);
+        item.reschedule(membership.getUser(), date, startTime, endTime, clean(note));
+        return toItineraryView(item, overlaps);
+    }
+
+    @Transactional
+    public void removeFromSchedule(UUID tripId, UUID itemId, UUID userId) {
+        requireMembership(tripId, userId);
+        var item = itineraryRepository.findByIdAndTripId(itemId, tripId)
+                .orElseThrow(() -> new InvalidItineraryException("Scheduled activity not found."));
+        item.getActivityIdea().returnToPool();
+        itineraryRepository.delete(item);
+    }
+
+    private void validateSchedule(Trip trip, LocalDate date, LocalTime startTime, LocalTime endTime) {
+        if (date.isBefore(trip.getStartDate()) || date.isAfter(trip.getEndDate()))
+            throw new InvalidItineraryException("The activity date must be within the trip dates.");
+        if (!startTime.isBefore(endTime))
+            throw new InvalidItineraryException("The activity start time must be before its end time.");
+    }
+
     private TripMember requireMembership(UUID tripId, UUID userId) {
         return memberRepository.findActiveMembership(tripId, userId).orElseThrow(TripNotFoundException::new);
     }

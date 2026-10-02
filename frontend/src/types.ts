@@ -66,6 +66,8 @@ export type ScheduleActivityInput = {
   note: string
 }
 
+export type UpdateScheduleInput = Omit<ScheduleActivityInput, 'activityIdeaId'>
+
 export type ItineraryItem = {
   id: string
   activityIdeaId: string

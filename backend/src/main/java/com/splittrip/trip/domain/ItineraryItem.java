@@ -28,6 +28,9 @@ public class ItineraryItem {
     public static ItineraryItem create(Trip trip, ActivityIdea idea, UserAccount user, LocalDate date, LocalTime start, LocalTime end, String note) {
         return new ItineraryItem(trip, idea, user, date, start, end, note);
     }
+    public void reschedule(UserAccount user, LocalDate date, LocalTime start, LocalTime end, String note) {
+        scheduledBy = user; scheduledDate = date; startTime = start; endTime = end; this.note = note; updatedAt = Instant.now();
+    }
     public UUID getId() { return id; } public ActivityIdea getActivityIdea() { return activityIdea; } public UserAccount getScheduledBy() { return scheduledBy; }
     public LocalDate getScheduledDate() { return scheduledDate; } public LocalTime getStartTime() { return startTime; }
     public LocalTime getEndTime() { return endTime; } public String getNote() { return note; }

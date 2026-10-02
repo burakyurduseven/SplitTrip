@@ -31,6 +31,7 @@ public class ActivityIdea {
         return new ActivityIdea(trip, user, title, description, location, duration);
     }
     public void schedule() { status = ActivityIdeaStatus.SCHEDULED; updatedAt = Instant.now(); }
+    public void returnToPool() { status = ActivityIdeaStatus.PROPOSED; updatedAt = Instant.now(); }
     public UUID getId() { return id; } public Trip getTrip() { return trip; } public UserAccount getCreatedBy() { return createdBy; }
     public String getTitle() { return title; } public String getDescription() { return description; } public String getLocation() { return location; }
     public int getEstimatedDurationMinutes() { return estimatedDurationMinutes; } public ActivityIdeaStatus getStatus() { return status; }
