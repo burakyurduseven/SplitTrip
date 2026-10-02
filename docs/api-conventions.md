@@ -55,3 +55,12 @@ Access tokens are sent in the `Authorization: Bearer <token>` header. Refresh to
 stored only in an `HttpOnly` and `SameSite=Strict` cookie, rotated whenever they are used, and stored
 as SHA-256 hashes in the database. Production environments must enable the cookie's `Secure` flag
 and provide a private Base64-encoded `JWT_SECRET` containing at least 256 bits.
+
+## Trips
+
+- `POST /api/v1/trips` creates a trip and makes the authenticated user its owner.
+- `GET /api/v1/trips` lists trips where the authenticated user has an active membership.
+- `GET /api/v1/trips/{tripId}` returns a trip only when the authenticated user is an active member.
+
+Trip resources include the current user's membership role. Requests for trips outside the user's
+membership scope return `404 Not Found` so that private resource existence is not disclosed.

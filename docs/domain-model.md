@@ -17,7 +17,7 @@ This is the conceptual starting point. Tables will be introduced through separat
 
 - `id`: UUID
 - `owner_id`: User
-- `title`, `description`
+- `title`, `destination`, `description`
 - `start_date`, `end_date`
 - `default_currency`: ISO 4217 code
 - `status`: ACTIVE, ARCHIVED

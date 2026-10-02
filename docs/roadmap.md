@@ -25,12 +25,12 @@ Exit criterion: a user can register, sign in, and access their profile only with
 
 ## Phase 2 — Trips and membership
 
-- Trip and TripMember models
-- Create, list, and view trips
-- Owner/member authorization
-- Secure invitation tokens
-- Invitation acceptance, leaving, and member removal
-- Trip list and detail shell
+- [x] Trip and TripMember models
+- [x] Create, list, and view trips
+- [ ] Owner/member authorization
+- [ ] Secure invitation tokens
+- [ ] Invitation acceptance, leaving, and member removal
+- [ ] Trip list and detail shell
 
 Exit criterion: one user can create a trip and securely invite another user to join.
 

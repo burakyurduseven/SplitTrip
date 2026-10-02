@@ -15,9 +15,33 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import com.splittrip.auth.application.EmailAlreadyInUseException;
 import com.splittrip.auth.application.InvalidCredentialsException;
 import com.splittrip.auth.application.InvalidRefreshTokenException;
+import com.splittrip.trip.application.InvalidTripDateRangeException;
+import com.splittrip.trip.application.TripNotFoundException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(TripNotFoundException.class)
+    ResponseEntity<ProblemDetail> handleTripNotFound(
+            TripNotFoundException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+        problem.setTitle("Trip not found");
+        problem.setType(URI.create("https://splittrip.app/problems/trip-not-found"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(InvalidTripDateRangeException.class)
+    ResponseEntity<ProblemDetail> handleInvalidTripDateRange(
+            InvalidTripDateRangeException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        problem.setTitle("Invalid trip date range");
+        problem.setType(URI.create("https://splittrip.app/problems/invalid-trip-date-range"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.badRequest().body(problem);
+    }
 
     @ExceptionHandler({InvalidCredentialsException.class, InvalidRefreshTokenException.class})
     ResponseEntity<ProblemDetail> handleUnauthorized(
