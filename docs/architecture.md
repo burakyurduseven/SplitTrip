@@ -1,26 +1,37 @@
-# Mimari başlangıç noktası
+# Architecture baseline
 
-SplitTrip tek deploy edilebilir backend ve tek frontend uygulamasından oluşan modüler bir monolith'tir.
+SplitTrip is a modular monolith consisting of one deployable backend and one frontend application. Microservices are intentionally excluded because the current product scope does not justify their operational cost.
 
-## Dizinler
+## Directories
 
 - `backend/`: Spring Boot REST API
-- `frontend/`: mobile-first React uygulaması
-- `docs/`: mimari ve ürün kararları
+- `frontend/`: mobile-first React application
+- `docs/`: product, design, and architecture decisions
 
-## Backend modül kuralı
+## Backend module rule
 
-İşlevler üst seviye paketlerle ayrılır. Her özellik kendi `api`, `application`, `domain` ve `infrastructure` alt paketlerini ihtiyaç oldukça açar. Ortak teknik yapı `common` altında tutulur. Modüller birbirlerinin iç sınıflarına doğrudan bağlanmamalıdır.
+Business capabilities are separated into top-level feature packages. Each feature may introduce `api`, `application`, `domain`, and `infrastructure` packages when those boundaries provide value. Shared technical configuration belongs under `common`.
 
-Başlangıç paketleri:
+Modules must not depend directly on another module's internal implementation. Unnecessary interfaces and enterprise abstractions should not be introduced.
+
+Initial packages:
 
 - `com.splittrip.common.config`
 - `com.splittrip.status.api`
 
-## Veri yönetimi
+Planned feature packages:
 
-PostgreSQL tek veri kaynağıdır. Şema yalnızca Flyway migration'larıyla değiştirilir; Hibernate şemayı doğrular ve oluşturmaz.
+- `auth`
+- `user`
+- `trip`
+- `itinerary`
+- `expense`
+- `settlement`
 
-## İlk aşama kapsamı dışında
+## Data management
 
-Redis, WebSocket, harita, ödeme, OCR, yapay zekâ ve PWA henüz eklenmeyecektir. PWA desteği ürünün son aşamasında ele alınacaktır.
+PostgreSQL is the single source of persistent data. Database schema changes are managed exclusively through Flyway migrations. Hibernate validates the schema and does not create or mutate it.
+
+## Deferred capabilities
+
+Redis, WebSocket, maps, payment integrations, OCR, AI features, and PWA support are deliberately deferred until the core product is complete and a concrete need exists.

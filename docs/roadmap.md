@@ -1,86 +1,86 @@
-# Geliştirme yol haritası
+# Development roadmap
 
-Her aşama çalışan, test edilmiş ve ayrı commit'lerle tamamlanan küçük dikey dilimlere bölünür.
+Each phase is divided into small vertical slices that are completed with working code, tests, and focused commits.
 
-## Aşama 0 — Ürün temeli
+## Phase 0 — Product foundation
 
-- [x] MVP kapsamı ve roller
-- [x] Başlangıç veri modeli
-- [x] Tasarım sistemi ve ekran yönü
-- [ ] API sözleşmesi kuralları
-- [ ] Wireframe geri bildiriminin işlenmesi
+- [x] MVP scope and roles
+- [x] Initial domain model
+- [x] Design system and interface direction
+- [ ] API contract conventions
+- [ ] Incorporate wireframe feedback
 
-## Aşama 1 — Kimlik ve kullanıcı
+## Phase 1 — Identity and users
 
-- User migration ve entity
-- Kayıt use case'i ve API'si
-- BCrypt şifreleme ve doğrulamalar
-- Giriş ve kısa ömürlü access JWT
-- Güvenli yenileme/çıkış yaklaşımı
-- Profil endpoint'i
-- Kayıt ve giriş ekranları
-- Unit ve integration testleri
+- User migration and entity
+- Registration use case and API
+- BCrypt password hashing and validation
+- Sign-in and short-lived access JWT
+- Secure refresh and sign-out approach
+- Profile endpoint
+- Registration and sign-in screens
+- Unit and integration tests
 
-Çıkış kriteri: Kullanıcı kayıt olabilir, giriş yapabilir ve yalnızca geçerli oturumla profilini görebilir.
+Exit criterion: a user can register, sign in, and access their profile only with a valid session.
 
-## Aşama 2 — Seyahat ve üyelik
+## Phase 2 — Trips and membership
 
-- Trip ve TripMember modeli
-- Seyahat oluşturma/listeleme/detay
-- Owner/member yetkilendirmesi
-- Güvenli davet tokenları
-- Davet kabulü, ayrılma ve üye çıkarma
-- Seyahat listesi ve detay kabuğu
+- Trip and TripMember models
+- Create, list, and view trips
+- Owner/member authorization
+- Secure invitation tokens
+- Invitation acceptance, leaving, and member removal
+- Trip list and detail shell
 
-Çıkış kriteri: Bir kullanıcı seyahat oluşturup başka bir kullanıcıyı güvenli şekilde gruba ekleyebilir.
+Exit criterion: one user can create a trip and securely invite another user to join.
 
-## Aşama 3 — Program
+## Phase 3 — Itinerary
 
-- Activity modeli ve API'leri
-- Günlük timeline
-- Plansız aktiviteler
-- Zaman ve tarih doğrulamaları
-- Çakışma uyarıları
+- Activity model and APIs
+- Daily timeline
+- Unscheduled activities
+- Date and time validation
+- Schedule conflict warnings
 
-Çıkış kriteri: Grup, seyahatin günlük programını ortaklaşa hazırlayabilir.
+Exit criterion: a group can collaboratively prepare its daily itinerary.
 
-## Aşama 4 — Harcama motoru
+## Phase 4 — Expense engine
 
-- Expense, ExpensePayment ve ExpenseShare modelleri
-- Eşit bölüştürme
-- Özel tutarla bölüştürme
-- Yüzdeyle bölüştürme
-- Kuruş dağıtımı ve kapsamlı birim testleri
-- Harcama ekleme/düzenleme ekranları
+- Expense, ExpensePayment, and ExpenseShare models
+- Equal split
+- Exact-amount split
+- Percentage split
+- Minor-unit distribution and comprehensive unit tests
+- Expense creation and editing interfaces
 
-Çıkış kriteri: Üç bölüştürme yöntemi kesin ve test edilmiş sonuç üretir.
+Exit criterion: all three split methods produce precise, tested results.
 
-## Aşama 5 — Bakiye ve kapatma
+## Phase 5 — Balances and settlement
 
-- Net bakiye sorguları
-- Greedy borç sadeleştirme
-- Önerilen transfer ekranı
-- Tam/kısmi settlement kaydı
-- Finansal geçmiş ve iptal akışları
+- Net balance queries
+- Greedy debt simplification
+- Suggested transfer interface
+- Full and partial settlement records
+- Financial history and void flows
 
-Çıkış kriteri: Grup, seyahat sonunda borçlarını uygulama üzerinden kapatabilir.
+Exit criterion: a group can settle its trip debts through the application.
 
-## Aşama 6 — Ürün kalitesi
+## Phase 6 — Product quality
 
-- Loading, empty ve error state'leri
-- Responsive ve erişilebilirlik denetimi
-- Güvenlik/yetkilendirme testleri
-- N+1, sorgu planı ve indeks kontrolü
-- Test kapsamının güçlendirilmesi
+- Loading, empty, and error states
+- Responsive and accessibility review
+- Security and authorization tests
+- N+1, query plan, and index review
+- Stronger test coverage
 
-## Aşama 7 — Yayın ve portföy
+## Phase 7 — Delivery and portfolio
 
 - GitHub Actions CI
 - Production deployment
-- Demo hesap/veri stratejisi
-- README ekran görüntüleri ve mimari diyagram
-- CV ve portföy açıklaması
+- Demo account and data strategy
+- README screenshots and architecture diagram
+- CV and portfolio description
 
-## Aşama 8 — MVP sonrası
+## Phase 8 — Post-MVP
 
-Kullanıcı geri bildirimine göre PWA, bildirim, harita veya diğer aday özelliklerden yalnızca gerçek değer sağlayanlar seçilir.
+Based on user feedback, only features that provide concrete value are selected from PWA support, notifications, maps, and other candidates.

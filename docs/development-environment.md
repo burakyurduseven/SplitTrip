@@ -1,22 +1,22 @@
-# Geliştirme ortamı kontrolü
+# Development environment verification
 
-2 Ekim 2026 tarihinde doğrulanan geliştirme ortamı:
+Environment verified on October 2, 2026:
 
-| Araç | Durum |
+| Tool | Status |
 |---|---|
-| Node.js | 26.5.0 kurulu |
-| npm | 11.17.0 kurulu |
-| Git | 2.55.0 kurulu |
-| Java / JDK | Eclipse Temurin 21.0.12.1 kurulu |
-| Maven | Sistem genelinde kurulu değil; Maven Wrapper kullanılacak |
-| Docker | Docker Desktop 29.8.1 kurulu |
-| Docker Compose | 5.5.1 kurulu |
-| WSL | WSL 2 etkin |
+| Node.js | 26.5.0 installed |
+| npm | 11.17.0 installed |
+| Git | 2.55.0 installed |
+| Java / JDK | Eclipse Temurin 21.0.12.1 installed |
+| Maven | Not installed system-wide; Maven Wrapper is used |
+| Docker | Docker Desktop 29.8.1 installed |
+| Docker Compose | 5.5.1 installed |
+| WSL | WSL 2 enabled |
 
-## Doğrulanan kontroller
+## Verified checks
 
-- Backend Maven build ve JUnit testi başarılı.
-- PostgreSQL 17.11 container'ı sağlıklı başladı.
-- Flyway `V1__baseline.sql` migration'ını başarıyla uyguladı.
-- Status API `ok`, Actuator health `UP` döndürdü.
-- OpenAPI dokümanı erişilebilir durumda.
+- Maven backend build and JUnit tests passed.
+- The PostgreSQL 17.11 container started and reported healthy.
+- Flyway successfully applied `V1__baseline.sql`.
+- The status API returned `ok` and Actuator health returned `UP`.
+- The OpenAPI document was accessible.

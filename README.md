@@ -1,24 +1,24 @@
 # SplitTrip
 
-Mobile-first, full-stack seyahat gideri paylaşım uygulaması.
+A mobile-first, full-stack application for collaborative trip planning and shared expense management.
 
-## Teknoloji
+## Technology stack
 
-- Backend: Java 21, Spring Boot 4, Spring Web MVC, Security, Data JPA, Flyway
-- Frontend: React, TypeScript, Vite, Tailwind CSS
-- Veritabanı: PostgreSQL
-- API dokümantasyonu: OpenAPI ve Swagger UI
-- Mimari: modüler monolith
+- Backend: Java 21, Spring Boot 4, Spring Web MVC, Security, Data JPA, and Flyway
+- Frontend: React, TypeScript, Vite, and Tailwind CSS
+- Database: PostgreSQL
+- API documentation: OpenAPI and Swagger UI
+- Architecture: modular monolith
 
-## Gereksinimler
+## Prerequisites
 
 - JDK 21
-- Node.js 22 veya üzeri
-- Docker Desktop (Compose dahil)
+- Node.js 22 or later
+- Docker Desktop with Docker Compose
 
-Maven'ın ayrıca kurulması gerekmez; Maven Wrapper depoya dahildir.
+A system-wide Maven installation is not required. The repository includes Maven Wrapper.
 
-## Yerel geliştirme
+## Local development
 
 ```powershell
 Copy-Item .env.example .env
@@ -27,7 +27,7 @@ cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-Ayrı bir terminalde:
+In a separate terminal:
 
 ```powershell
 cd frontend
@@ -35,12 +35,12 @@ npm install
 npm run dev
 ```
 
-- Web: http://localhost:5173
-- API durumu: http://localhost:8080/api/v1/status
+- Web application: http://localhost:5173
+- API status: http://localhost:8080/api/v1/status
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - Actuator health: http://localhost:8080/actuator/health
 
-## Kontroller
+## Quality checks
 
 ```powershell
 cd backend
@@ -52,11 +52,11 @@ npm run test
 npm run build
 ```
 
-## Proje dokümantasyonu
+## Project documentation
 
-- Ürün kapsamı ve roller: `docs/product-requirements.md`
-- Başlangıç veri modeli: `docs/domain-model.md`
-- Tasarım sistemi: `docs/design-system.md`
-- Geliştirme sırası: `docs/roadmap.md`
-- Mimari yaklaşım: `docs/architecture.md`
-- Geliştirme ortamı: `docs/development-environment.md`
+- Product scope and roles: `docs/product-requirements.md`
+- Initial domain model: `docs/domain-model.md`
+- Design system: `docs/design-system.md`
+- Development roadmap: `docs/roadmap.md`
+- Architecture: `docs/architecture.md`
+- Development environment: `docs/development-environment.md`

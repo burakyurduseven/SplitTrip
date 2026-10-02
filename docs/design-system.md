@@ -1,70 +1,70 @@
-# Tasarım sistemi başlangıcı
+# Design system baseline
 
-## Tasarım karakteri
+## Design character
 
-SplitTrip sıcak, sosyal ve güvenilir hissettirmelidir. Görünüm klasik bir yönetim panelinden çok seyahat arkadaşları için hazırlanmış tüketici ürünü olmalıdır.
+SplitTrip should feel warm, social, and trustworthy. It should resemble a polished consumer travel product rather than a traditional administration dashboard.
 
-Seçilen başlangıç yönü: **Sıcak ve sosyal**.
+Selected initial direction: **Warm and social**.
 
-## Renkler
+## Colors
 
-Başlangıç tokenları:
+Initial tokens:
 
-| Token | Açık tema | Kullanım |
+| Token | Light theme | Usage |
 |---|---:|---|
-| Canvas | `#F7F8F4` | Ana arka plan |
-| Surface | `#FFFFFF` | Kart ve formlar |
-| Ink | `#15251F` | Ana metin |
-| Muted ink | `#64716B` | İkincil metin |
-| Brand | `#0F766E` | Ana aksiyonlar |
-| Brand soft | `#DDF4EF` | Seçili ve vurgulu alanlar |
-| Positive | `#15803D` | Alacak ve başarı |
-| Negative | `#DC5A4A` | Borç ve hata |
-| Warning | `#B7791F` | Çakışma ve uyarı |
-| Border | `#E1E7E3` | Ayırıcılar |
+| Canvas | `#F7F8F4` | Main background |
+| Surface | `#FFFFFF` | Cards and forms |
+| Ink | `#15251F` | Primary text |
+| Muted ink | `#64716B` | Secondary text |
+| Brand | `#0F766E` | Primary actions |
+| Brand soft | `#DDF4EF` | Selected and highlighted areas |
+| Positive | `#15803D` | Credit and success |
+| Negative | `#DC5A4A` | Debt and errors |
+| Warning | `#B7791F` | Conflicts and warnings |
+| Border | `#E1E7E3` | Dividers |
 
-Durum yalnızca renkle anlatılmaz; işaret, ikon ve metin birlikte kullanılır.
+Status must never depend on color alone. Signs, icons, and text accompany color.
 
-## Tipografi
+## Typography
 
-- Birincil font: Inter veya sistem sans-serif
-- Sayısal tutarlar: tabular numerals
-- Sayfa başlığı: güçlü fakat kompakt
-- Gövde metni: mobilde en az 16 px
-- Yardımcı metin: en az 12 px ve yeterli kontrast
+- Primary font: Inter or the system sans-serif stack
+- Monetary values use tabular numerals
+- Page headings are strong but compact
+- Body text is at least 16 px on mobile
+- Supporting text is at least 12 px with sufficient contrast
 
-## Yerleşim
+## Layout
 
-- Önce 320–430 px mobil genişlik tasarlanır.
-- Mobilde sayfa kenar boşluğu 16–20 px olur.
-- İçerik masaüstünde yaklaşık 1120 px ile sınırlandırılır.
-- Birincil mobil navigasyon altta bulunur: Özet, Program, Harcamalar, Bakiyeler.
-- Bir ekranda tek baskın birincil aksiyon kullanılır.
-- Dokunma hedefleri yaklaşık 44×44 px veya daha büyüktür.
+- Design starts at a 320–430 px mobile width.
+- Mobile page gutters are 16–20 px.
+- Desktop content is constrained to approximately 1120 px.
+- Primary mobile navigation sits at the bottom: Overview, Itinerary, Expenses, and Balances.
+- Each screen has one dominant primary action.
+- Touch targets are approximately 44×44 px or larger.
 
-## Bileşenler
+## Components
 
-- Seyahat kartı: tarih, üye avatarları, yaklaşan aktivite ve bakiye özeti
-- Timeline satırı: saat, aktivite, konum ve çakışma durumu
-- Harcama satırı: kategori, ödeyen, tutar ve kullanıcının payı
-- Bakiye satırı: üye, pozitif/negatif tutar ve açıklayıcı metin
-- Bottom sheet: mobil harcama ekleme ve filtreler
-- Empty state: kısa açıklama ve tek net aksiyon
-- Skeleton: son yerleşimin şeklini korur
-- Toast: kısa işlem sonucu; kritik hatalar form/sayfa içinde kalır
+- Trip card: dates, member avatars, upcoming activity, and balance summary
+- Timeline row: time, activity, location, and conflict state
+- Expense row: category, payer, amount, and the current user's share
+- Balance row: member, positive or negative amount, and explanatory text
+- Bottom sheet: mobile expense creation and filters
+- Empty state: short explanation and one clear action
+- Skeleton: preserves the shape of the final layout
+- Toast: brief operation feedback; critical errors remain in the page or form
 
-## İçerik dili
+## Content style
 
-- Kısa ve doğrudan Türkçe ifadeler
-- “Borçlusun” yerine bağlama göre “Ödeyeceğin tutar”
-- “Optimal ödeme” yerine “Önerilen ödeme planı”
-- Hata mesajında ne olduğu ve kullanıcının ne yapabileceği birlikte belirtilir
+- Short, direct language
+- Prefer “Amount to pay” over accusatory wording
+- Use “Suggested payment plan,” not “Optimal payment plan”
+- Error messages explain both what happened and what the user can do next
 
-## Erişilebilirlik
+## Accessibility
 
-- Metin kontrastı WCAG AA hedefler.
-- Form alanlarının görünür etiketi olur.
-- Hata yalnızca renk ile gösterilmez.
-- Klavye odağı belirgindir.
-- Hareket azaltma tercihi desteklenir.
-- İkon-only butonlarda erişilebilir ad bulunur.
+- Text contrast targets WCAG AA.
+- Form controls have visible labels.
+- Errors are not communicated by color alone.
+- Keyboard focus is visible.
+- Reduced-motion preferences are respected.
+- Icon-only buttons have accessible names.

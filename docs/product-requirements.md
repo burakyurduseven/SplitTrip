@@ -1,134 +1,134 @@
-# SplitTrip ürün gereksinimleri
+# SplitTrip product requirements
 
-## 1. Ürün amacı
+## 1. Product purpose
 
-SplitTrip, arkadaş gruplarının bir seyahati birlikte planlamasını, ortak giderleri doğru biçimde bölüştürmesini ve seyahat sonunda borçlarını anlaşılır bir ödeme planıyla kapatmasını sağlayan mobile-first bir web uygulamasıdır.
+SplitTrip is a mobile-first web application that enables groups of friends to plan a trip together, split shared expenses accurately, and settle their debts through a clear payment plan at the end of the trip.
 
-Ürün iki ayrı problemi tek akışta çözer:
+It combines two connected problems in one product:
 
-1. Seyahat programını grup olarak oluşturmak.
-2. Ortak harcamaları ve grup içi borçları yönetmek.
+1. Collaborative trip planning
+2. Shared expense and debt management
 
-## 2. Hedef kullanıcı
+## 2. Target users
 
-- Arkadaş grubuyla kısa veya uzun seyahat düzenleyen kişiler
-- Gezi sırasında programı ve harcamaları tek yerde tutmak isteyen gruplar
-- Kimin ne ödediğini ve kime borçlu olduğunu kolayca görmek isteyen kullanıcılar
+- People organizing short or long trips with friends
+- Groups that want their itinerary and expenses in one place
+- Users who need a clear view of who paid, who owes, and how to settle
 
-## 3. MVP başarı ölçütü
+## 3. MVP success criterion
 
-Bir grup uygulama içinde aşağıdaki akışı dışarıdan başka bir araca ihtiyaç duymadan tamamlayabilmelidir:
+A group must be able to complete this flow without relying on another tool:
 
-1. Hesap oluşturmak ve giriş yapmak
-2. Seyahat oluşturmak
-3. Davet bağlantısıyla gruba katılmak
-4. Günlere aktivite eklemek
-5. Ortak harcamaları üç farklı yöntemle bölmek
-6. Güncel bakiyeleri görmek
-7. Önerilen transferleri kaydederek borçları kapatmak
+1. Create an account and sign in
+2. Create a trip
+3. Join through an invitation link
+4. Add activities to trip days
+5. Record and split expenses using three methods
+6. Review current balances
+7. Record suggested transfers and settle debts
 
-## 4. Roller ve yetkiler
+## 4. Roles and permissions
 
-### Ziyaretçi
+### Visitor
 
-- Landing sayfasını görebilir.
-- Kayıt olabilir ve giriş yapabilir.
-- Geçerli bir davet bağlantısını açabilir; katılmak için giriş yapması gerekir.
+- Can view the landing page.
+- Can register and sign in.
+- Can open a valid invitation link but must sign in before joining.
 
-### Kullanıcı
+### User
 
-- Profilini görebilir ve düzenleyebilir.
-- Seyahat oluşturabilir.
-- Üyesi olduğu seyahatleri listeleyebilir.
-- Üyesi olmadığı seyahatlerin içeriklerine erişemez.
+- Can view and edit their profile.
+- Can create a trip.
+- Can list trips they belong to.
+- Cannot access data from trips they do not belong to.
 
-### Seyahat üyesi
+### Trip member
 
-- Seyahatin genel bilgilerini ve üyelerini görebilir.
-- Aktivite ekleyebilir, kendi eklediği aktiviteyi düzenleyebilir.
-- Harcama ekleyebilir ve kendi eklediği harcamayı düzenleyebilir.
-- Bakiyeleri ve ödeme önerilerini görebilir.
-- Ödeme kaydı oluşturabilir.
-- Geçmiş finansal kaydı varsa seyahatten ayrıldığında kayıtları korunur.
+- Can view trip details and members.
+- Can add activities and edit activities they created.
+- Can add expenses and edit expenses they created.
+- Can view balances and suggested settlements.
+- Can record a settlement.
+- Keeps historical financial records after leaving a trip.
 
-### Seyahat sahibi
+### Trip owner
 
-- Üye yetkilerinin tamamına sahiptir.
-- Seyahat bilgilerini düzenleyebilir.
-- Davet bağlantısı oluşturabilir ve yenileyebilir.
-- Üye çıkarabilir.
-- Sahipliği başka bir üyeye aktarabilir.
-- Seyahati arşivleyebilir.
+- Has all member permissions.
+- Can edit trip details.
+- Can create and rotate invitation links.
+- Can remove members.
+- Can transfer ownership to another member.
+- Can archive the trip.
 
-## 5. Fonksiyonel kapsam
+## 5. Functional scope
 
-### Kimlik ve profil
+### Identity and profile
 
-- E-posta ve şifreyle kayıt
-- E-posta ve şifreyle giriş
-- JWT tabanlı kimlik doğrulama
-- Güvenli çıkış
-- Kullanıcı profilini görüntüleme ve düzenleme
-- Hesap silme altyapısı
+- Registration with email and password
+- Sign-in with email and password
+- JWT-based authentication
+- Secure sign-out
+- View and update profile
+- Account deletion foundation
 
-### Seyahat
+### Trips
 
-- Başlık, açıklama, başlangıç/bitiş tarihi ve varsayılan para birimiyle oluşturma
-- Aktif ve arşivlenmiş seyahatleri listeleme
-- Owner/member rolleri
-- Süresi ve kullanım durumu bulunan güvenli davet tokenı
-- Daveti kabul etme
-- Sahipliği aktarma, seyahatten ayrılma ve üye çıkarma kuralları
+- Create a trip with a title, description, date range, and default currency
+- List active and archived trips
+- Owner and member roles
+- Secure invitation tokens with expiration and usage state
+- Accept an invitation
+- Ownership transfer, leave, and member removal rules
 
-### Program
+### Itinerary
 
-- Seyahat tarih aralığındaki günleri gösterme
-- Başlık, açıklama, konum metni, başlangıç ve bitiş zamanıyla aktivite ekleme
-- Aktiviteleri saat sırasına koyma
-- Plansız aktivite ekleme
-- Çakışan zamanları engellemeden kullanıcıyı uyarma
+- Display the days in the trip date range
+- Add an activity with title, description, location text, start time, and end time
+- Sort activities chronologically
+- Add unscheduled activities
+- Warn about overlapping activities without blocking the user
 
-### Harcamalar
+### Expenses
 
-- Başlık, tutar, para birimi, kategori, tarih ve açıklama
-- Bir veya birden fazla ödeyen
-- Harcamaya katılan üyeler
-- Eşit, özel tutar ve yüzde bazlı bölüştürme
-- Harcama düzenleme ve iptal etme
-- Finansal geçmişi bozacak fiziksel silme yerine durum/geçmiş yaklaşımı
+- Title, amount, currency, category, date, and description
+- One or more payers
+- Participating members
+- Equal, exact-amount, and percentage splits
+- Edit and void an expense
+- Preserve financial history instead of physically deleting records
 
-### Bakiye ve ödeme
+### Balances and settlements
 
-- Üye bazında toplam ödeme, yükümlülük ve net bakiye
-- Grup içi borç sadeleştirme
-- Önerilen transferler
-- Ödeme kaydı ve ödeme geçmişi
-- Tam ve kısmi ödeme desteği
+- Total paid, total owed, and net balance per member
+- Group debt simplification
+- Suggested transfers
+- Settlement records and history
+- Full and partial settlements
 
-## 6. Temel iş kuralları
+## 6. Core business rules
 
-- Para hesapları backend'de `BigDecimal`, PostgreSQL'de `numeric` ile yapılır.
-- Bir harcamanın payları toplamı harcama tutarına eşit olmalıdır.
-- Yüzdelerin toplamı tam olarak 100 olmalıdır.
-- Eşit bölünemeyen en küçük para birimleri, sabit üye sırasına göre deterministik dağıtılır.
-- Başlangıç tarihi bitiş tarihinden sonra olamaz.
-- Aktivite zamanı seyahat tarihleri dışında olamaz.
-- Kullanıcı yalnızca üyesi olduğu seyahatin verilerine erişebilir.
-- Owner, sahipliği devretmeden gruptan ayrılamaz.
-- Finansal hareketler sonradan izlenebilir biçimde korunur.
-- Greedy borç sadeleştirme sonucu “önerilen plan” olarak sunulur; “optimal” olarak adlandırılmaz.
+- Monetary calculations use `BigDecimal` in Java and `numeric` in PostgreSQL.
+- Expense shares must add up to the expense amount.
+- Percentage splits must add up to exactly 100 percent.
+- Indivisible minor currency units are distributed deterministically using a stable member order.
+- A trip start date cannot be after its end date.
+- Activity times cannot fall outside the trip date range.
+- Users may access only trips they belong to.
+- An owner cannot leave before transferring ownership.
+- Financial records remain traceable after edits or membership changes.
+- A greedy debt simplification result is called a “suggested plan,” never an “optimal plan.”
 
-## 7. MVP dışında
+## 7. Outside the MVP
 
-Çoklu para birimi dönüşümü, döviz kuru, harita, rota, OCR, fiş fotoğrafı, ödeme altyapısı, Redis, WebSocket, bildirim, çevrimdışı kullanım, PWA, yapay zekâ, PDF/Excel dışa aktarma ve gelişmiş grafikler MVP kapsamında değildir.
+Currency conversion, historical exchange rates, maps, routing, OCR, receipt images, payment integrations, Redis, WebSocket, notifications, offline support, PWA, AI features, PDF/Excel export, and advanced analytics are outside the MVP.
 
-## 8. Kalite gereksinimleri
+## 8. Quality requirements
 
-- Tutarlı problem-details tabanlı API hata cevapları
-- Yetkisiz kaynak erişimine karşı testler
-- Kritik işlemlerde transaction sınırları
-- N+1 sorgu kontrolleri ve gerekli indeksler
-- Finansal hesaplama motoru için kapsamlı birim testleri
-- Kritik akışlar için PostgreSQL Testcontainers integration testleri
-- Klavye kullanımı, odak görünürlüğü ve yeterli renk kontrastı
-- Loading, empty, validation ve hata durumlarının tasarlanması
+- Consistent Problem Details API error responses
+- Authorization tests for protected resources
+- Explicit transaction boundaries for critical operations
+- N+1 query reviews and appropriate indexes
+- Comprehensive unit tests for financial calculations
+- PostgreSQL Testcontainers integration tests for critical workflows
+- Keyboard access, visible focus states, and sufficient color contrast
+- Designed loading, empty, validation, and error states

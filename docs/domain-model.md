@@ -1,13 +1,13 @@
-# Başlangıç veri modeli
+# Initial domain model
 
-Bu model kavramsal başlangıç noktasıdır. Tablolar özellik geliştirme aşamalarında ayrı Flyway migration'larıyla eklenecektir.
+This is the conceptual starting point. Tables will be introduced through separate Flyway migrations as each feature is implemented.
 
-## Ana varlıklar
+## Core entities
 
 ### User
 
 - `id`: UUID
-- `email`: benzersiz, normalize edilmiş
+- `email`: unique and normalized
 - `password_hash`
 - `display_name`
 - `status`: ACTIVE, DELETION_REQUESTED, DELETED
@@ -19,7 +19,7 @@ Bu model kavramsal başlangıç noktasıdır. Tablolar özellik geliştirme aşa
 - `owner_id`: User
 - `title`, `description`
 - `start_date`, `end_date`
-- `default_currency`: ISO 4217 kodu
+- `default_currency`: ISO 4217 code
 - `status`: ACTIVE, ARCHIVED
 - `created_at`, `updated_at`
 
@@ -31,13 +31,13 @@ Bu model kavramsal başlangıç noktasıdır. Tablolar özellik geliştirme aşa
 - `status`: ACTIVE, LEFT, REMOVED
 - `joined_at`, `left_at`
 
-`trip_id + user_id` benzersizdir. Ayrılan üyelerin kaydı finansal geçmiş nedeniyle silinmez.
+The combination of `trip_id` and `user_id` is unique. Membership records are preserved when a user leaves because they may be referenced by financial history.
 
 ### TripInvite
 
 - `id`: UUID
 - `trip_id`
-- `token_hash`: ham token veritabanında saklanmaz
+- `token_hash`: raw tokens are never stored
 - `created_by`, `expires_at`
 - `max_uses`, `use_count`
 - `revoked_at`
@@ -67,7 +67,7 @@ Bu model kavramsal başlangıç noktasıdır. Tablolar özellik geliştirme aşa
 
 ### ExpensePayment
 
-Harcamayı gerçekte kimin ne kadar ödediğini tutar.
+Records who actually paid each part of an expense.
 
 - `id`: UUID
 - `expense_id`, `member_id`
@@ -75,16 +75,16 @@ Harcamayı gerçekte kimin ne kadar ödediğini tutar.
 
 ### ExpenseShare
 
-Harcamadan kimin ne kadar sorumlu olduğunu tutar. Hesaplanmış kesin parasal sonuç burada saklanır.
+Records the exact monetary responsibility assigned to each member. The calculated monetary result is stored for traceability.
 
 - `id`: UUID
 - `expense_id`, `member_id`
 - `amount`: numeric
-- `percentage`: yalnızca yüzde yöntemi için giriş/audit bilgisi
+- `percentage`: input and audit information for percentage splits
 
 ### Settlement
 
-Üyeler arasında gerçekten yapılan ödemeyi kaydeder.
+Records an actual payment between two members.
 
 - `id`: UUID
 - `trip_id`
@@ -94,7 +94,7 @@ Harcamadan kimin ne kadar sorumlu olduğunu tutar. Hesaplanmış kesin parasal s
 - `created_by`, `created_at`
 - `status`: CONFIRMED, VOIDED
 
-## İlişkiler
+## Relationships
 
 ```mermaid
 erDiagram
@@ -111,14 +111,14 @@ erDiagram
     TRIP ||--o{ SETTLEMENT : settles
 ```
 
-## Finansal yaklaşım
+## Financial approach
 
-Bakiyeler ayrı, değiştirilebilir bir toplam tablosu yerine `ExpensePayment`, `ExpenseShare` ve `Settlement` kayıtlarından hesaplanır. Performans gerektirdiğinde kontrollü bir projection/cache eklenebilir. Böylece başlangıçta doğruluk ve izlenebilirlik korunur.
+Balances are calculated from `ExpensePayment`, `ExpenseShare`, and `Settlement` records rather than stored as mutable totals. A controlled projection or cache may be introduced later if performance requires it. This keeps correctness and traceability as the initial priorities.
 
-Bir üyenin net bakiyesi:
+A member's net balance is:
 
 ```text
-toplam ödediği - toplam payı - gönderdiği settlement + aldığı settlement
+total paid - total share - settlements sent + settlements received
 ```
 
-İşaret yorumu API sözleşmesinde kesinleştirilecektir: pozitif değer alacak, negatif değer borç anlamına gelir.
+The API contract will define the sign convention consistently: a positive value means the member is owed money, and a negative value means the member owes money.
