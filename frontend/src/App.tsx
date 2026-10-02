@@ -1,10 +1,18 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 
+import { Dashboard } from './Dashboard'
+import type { AccessTokenResponse, ApiProblem, CreateTripInput, CurrentUser, Trip } from './types'
+
 type AuthMode = 'login' | 'register'
-type ApiProblem = { detail?: string; errors?: Record<string, string> }
-type AccessTokenResponse = { accessToken: string }
-type CurrentUser = { displayName: string; email: string }
+
+const readProblem = async (response: Response): Promise<ApiProblem> => {
+  try {
+    return await response.json() as ApiProblem
+  } catch {
+    return {}
+  }
+}
 
 const ArrowIcon = () => (
   <svg aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M5 12h13m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -27,6 +35,72 @@ function App() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [user, setUser] = useState<CurrentUser | null>(null)
+  const [accessToken, setAccessToken] = useState('')
+  const [trips, setTrips] = useState<Trip[]>([])
+  const [bootstrapping, setBootstrapping] = useState(true)
+
+  const endSession = () => {
+    setAccessToken('')
+    setTrips([])
+    setUser(null)
+    setMode('login')
+  }
+
+  const authenticatedFetch = async (input: RequestInfo | URL, init: RequestInit = {}) => {
+    const send = (token: string) => {
+      const headers = new Headers(init.headers)
+      headers.set('Authorization', `Bearer ${token}`)
+      return fetch(input, { ...init, headers })
+    }
+
+    let response = await send(accessToken)
+    if (response.status !== 401) return response
+
+    const refreshResponse = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })
+    if (!refreshResponse.ok) {
+      endSession()
+      throw new Error('Your session has expired. Please log in again.')
+    }
+
+    try {
+      const tokens = await refreshResponse.json() as AccessTokenResponse
+      setAccessToken(tokens.accessToken)
+      response = await send(tokens.accessToken)
+      return response
+    } catch {
+      endSession()
+      throw new Error('Your session has expired. Please log in again.')
+    }
+  }
+
+  const loadAccount = async (token: string) => {
+    const authorization = { Authorization: `Bearer ${token}` }
+    const [profileResponse, tripsResponse] = await Promise.all([
+      fetch('/api/v1/users/me', { headers: authorization }),
+      fetch('/api/v1/trips', { headers: authorization }),
+    ])
+    if (!profileResponse.ok) throw await readProblem(profileResponse)
+    if (!tripsResponse.ok) throw await readProblem(tripsResponse)
+    setAccessToken(token)
+    setUser(await profileResponse.json() as CurrentUser)
+    setTrips(await tripsResponse.json() as Trip[])
+  }
+
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const response = await fetch('/api/v1/auth/refresh', { method: 'POST', credentials: 'include' })
+        if (!response.ok) return
+        const tokens = await response.json() as AccessTokenResponse
+        await loadAccount(tokens.accessToken)
+      } catch {
+        // A missing local API or expired session should simply reveal the sign-in screen.
+      } finally {
+        setBootstrapping(false)
+      }
+    }
+    void restoreSession()
+  }, [])
 
   const changeMode = (nextMode: AuthMode) => {
     setMode(nextMode)
@@ -37,11 +111,9 @@ function App() {
     const response = await fetch('/api/v1/auth/login', {
       method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password }),
     })
-    if (!response.ok) throw await response.json() as ApiProblem
+    if (!response.ok) throw await readProblem(response)
     const tokens = await response.json() as AccessTokenResponse
-    const profileResponse = await fetch('/api/v1/users/me', { headers: { Authorization: `Bearer ${tokens.accessToken}` } })
-    if (!profileResponse.ok) throw await profileResponse.json() as ApiProblem
-    setUser(await profileResponse.json() as CurrentUser)
+    await loadAccount(tokens.accessToken)
   }
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -53,7 +125,7 @@ function App() {
         const response = await fetch('/api/v1/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ displayName, email, password }),
         })
-        if (!response.ok) throw await response.json() as ApiProblem
+        if (!response.ok) throw await readProblem(response)
       }
       await signIn()
     } catch (problem) {
@@ -65,18 +137,38 @@ function App() {
     }
   }
 
+  const createTrip = async (input: CreateTripInput) => {
+    const response = await authenticatedFetch('/api/v1/trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) {
+      const problem = await readProblem(response)
+      const fieldError = problem.errors && Object.values(problem.errors)[0]
+      const fallback = response.status === 401
+        ? 'Your session has expired. Please log in again.'
+        : 'We could not create your trip.'
+      throw new Error(fieldError ?? problem.detail ?? fallback)
+    }
+    const trip = await response.json() as Trip
+    setTrips(current => [trip, ...current])
+  }
+
+  const logout = async () => {
+    try {
+      await fetch('/api/v1/auth/logout', { method: 'DELETE', credentials: 'include' })
+    } finally {
+      endSession()
+    }
+  }
+
+  if (bootstrapping) {
+    return <main className="app-loading"><div className="loading-mark">S</div><p>Mapping your journey...</p></main>
+  }
+
   if (user) {
-    return (
-      <main className="success-screen">
-        <div className="success-orbit" aria-hidden="true" />
-        <section className="success-card">
-          <div className="success-mark">✓</div><p className="eyebrow">THE JOURNEY STARTS HERE</p>
-          <h1>Welcome, {user.displayName.split(' ')[0]}.</h1>
-          <p>Your account is ready. Next stop: creating your first trip.</p>
-          <button className="primary-button" type="button"><span>Explore your trips</span><ArrowIcon /></button>
-        </section>
-      </main>
-    )
+    return <Dashboard user={user} trips={trips} onCreateTrip={createTrip} onLogout={logout} />
   }
 
   return (

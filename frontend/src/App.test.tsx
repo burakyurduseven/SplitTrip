@@ -1,24 +1,63 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, describe, expect, it } from 'vitest'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App'
 
-afterEach(cleanup)
+beforeEach(() => vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false })))
+afterEach(() => { cleanup(); vi.unstubAllGlobals() })
 
 describe('App', () => {
-  it('renders the registration experience', () => {
+  it('renders the registration experience', async () => {
     render(<App />)
 
-    expect(screen.getAllByText('SplitTrip').length).toBeGreaterThan(0)
-    expect(screen.getByRole('heading', { name: 'Join your travel crew.' })).toBeDefined()
+    expect((await screen.findAllByText('SplitTrip')).length).toBeGreaterThan(0)
+    expect(await screen.findByRole('heading', { name: 'Join your travel crew.' })).toBeDefined()
   })
 
-  it('switches to sign in mode', () => {
+  it('switches to sign in mode', async () => {
     render(<App />)
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Log in' }))
+    fireEvent.click(await screen.findByRole('tab', { name: 'Log in' }))
 
     expect(screen.getByRole('heading', { name: 'Pick up where you left off.' })).toBeDefined()
     expect(screen.queryByLabelText('Your name')).toBeNull()
+  })
+
+  it('restores a session and renders real trips', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'user-1', displayName: 'Burak Yurduseven', email: 'burak@example.com', createdAt: '2026-10-02T00:00:00Z' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ([{ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }]) }))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Good morning, Burak.' })).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Aegean Summer' })).toBeDefined()
+  })
+
+  it('refreshes an expired access token and retries trip creation', async () => {
+    const createdTrip = { id: 'trip-2', ownerId: 'user-1', title: 'Balkan Escape', destination: 'Üsküp', description: '', startDate: '2026-10-29', endDate: '2026-11-01', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'expired-token' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'user-1', displayName: 'Burak', email: 'burak@example.com', createdAt: '2026-10-02T00:00:00Z' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: false, status: 401, json: async () => { throw new Error('empty body') } })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'fresh-token' }) })
+      .mockResolvedValueOnce({ ok: true, status: 201, json: async () => createdTrip })
+    vi.stubGlobal('fetch', fetchMock)
+
+    render(<App />)
+    fireEvent.click((await screen.findAllByRole('button', { name: /Create trip/ }))[0])
+
+    const dialog = screen.getByRole('dialog')
+    fireEvent.change(within(dialog).getByLabelText('Trip name'), { target: { value: 'Balkan Escape' } })
+    fireEvent.change(within(dialog).getByLabelText('Destination'), { target: { value: 'Üsküp' } })
+    fireEvent.change(within(dialog).getByLabelText('Starts'), { target: { value: '2026-10-29' } })
+    fireEvent.change(within(dialog).getByLabelText('Ends'), { target: { value: '2026-11-01' } })
+    fireEvent.click(within(dialog).getByRole('button', { name: /Create trip/ }))
+
+    expect(await screen.findByRole('heading', { name: 'Balkan Escape' })).toBeDefined()
+    const retryHeaders = fetchMock.mock.calls[5][1]?.headers as Headers
+    expect(retryHeaders.get('Authorization')).toBe('Bearer fresh-token')
   })
 })
