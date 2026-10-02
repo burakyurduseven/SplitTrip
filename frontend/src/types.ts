@@ -34,3 +34,47 @@ export type TripMember = {
 
 export type CreatedInvitation = { token: string; expiresAt: string }
 export type InvitationPreview = { tripId: string; tripTitle: string; destination: string; expiresAt: string }
+
+export type ActivityVoteValue = 'LIKE' | 'DISLIKE'
+export type ActivityIdea = {
+  id: string
+  createdById: string
+  createdByName: string
+  title: string
+  description: string | null
+  location: string | null
+  estimatedDurationMinutes: number
+  status: 'PROPOSED' | 'SCHEDULED' | 'ARCHIVED'
+  likes: number
+  dislikes: number
+  currentUserVote: ActivityVoteValue | null
+  createdAt: string
+}
+
+export type CreateActivityIdeaInput = {
+  title: string
+  description: string
+  location: string
+  estimatedDurationMinutes: number
+}
+
+export type ScheduleActivityInput = {
+  activityIdeaId: string
+  scheduledDate: string
+  startTime: string
+  endTime: string
+  note: string
+}
+
+export type ItineraryItem = {
+  id: string
+  activityIdeaId: string
+  title: string
+  location: string | null
+  scheduledDate: string
+  startTime: string
+  endTime: string
+  note: string | null
+  scheduledByName: string
+  overlapsExistingItem: boolean
+}

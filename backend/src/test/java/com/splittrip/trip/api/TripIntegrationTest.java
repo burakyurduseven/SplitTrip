@@ -29,6 +29,9 @@ import com.jayway.jsonpath.JsonPath;
 import com.splittrip.auth.infrastructure.RefreshSessionRepository;
 import com.splittrip.trip.infrastructure.TripMemberRepository;
 import com.splittrip.trip.infrastructure.TripInvitationRepository;
+import com.splittrip.trip.infrastructure.ActivityIdeaRepository;
+import com.splittrip.trip.infrastructure.ActivityVoteRepository;
+import com.splittrip.trip.infrastructure.ItineraryItemRepository;
 import com.splittrip.trip.infrastructure.TripRepository;
 import com.splittrip.user.infrastructure.UserAccountRepository;
 
@@ -50,6 +53,10 @@ class TripIntegrationTest {
     @Autowired
     private TripInvitationRepository tripInvitationRepository;
 
+    @Autowired private ItineraryItemRepository itineraryItemRepository;
+    @Autowired private ActivityVoteRepository activityVoteRepository;
+    @Autowired private ActivityIdeaRepository activityIdeaRepository;
+
     @Autowired
     private TripRepository tripRepository;
 
@@ -61,6 +68,9 @@ class TripIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        itineraryItemRepository.deleteAll();
+        activityVoteRepository.deleteAll();
+        activityIdeaRepository.deleteAll();
         tripInvitationRepository.deleteAll();
         tripMemberRepository.deleteAll();
         tripRepository.deleteAll();
@@ -199,6 +209,76 @@ class TripIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, bearer(memberToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(0)));
+    }
+
+    @Test
+    void letsMembersSuggestAndChangeTheirVote() throws Exception {
+        var accessToken = registerAndLogin("ada@example.com", "Ada Lovelace");
+        var tripId = createTrip(accessToken, "Aegean Summer");
+        var idea = mockMvc.perform(post("/api/v1/trips/{tripId}/activity-ideas", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Boat tour","description":"Sunset route","location":"Kaş Marina","estimatedDurationMinutes":120}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.likes").value(0))
+                .andReturn();
+        String ideaId = JsonPath.read(idea.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/v1/trips/{tripId}/activity-ideas/{ideaId}/vote", tripId, ideaId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"value\":\"LIKE\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.likes").value(1))
+                .andExpect(jsonPath("$.currentUserVote").value("LIKE"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/v1/trips/{tripId}/activity-ideas/{ideaId}/vote", tripId, ideaId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"value\":\"DISLIKE\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.likes").value(0))
+                .andExpect(jsonPath("$.dislikes").value(1));
+    }
+
+    @Test
+    void schedulesIdeasAndReportsTimeOverlapWithoutBlocking() throws Exception {
+        var accessToken = registerAndLogin("ada@example.com", "Ada Lovelace");
+        var tripId = createTrip(accessToken, "Aegean Summer");
+        var firstIdea = createIdea(accessToken, tripId, "Boat tour");
+        var secondIdea = createIdea(accessToken, tripId, "Museum visit");
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/itinerary", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleBody(firstIdea, "10:00", "12:00")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.overlapsExistingItem").value(false));
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/itinerary", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleBody(secondIdea, "11:30", "13:00")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.overlapsExistingItem").value(true));
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/itinerary", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(2)))
+                .andExpect(jsonPath("$[0].title").value("Boat tour"));
+    }
+
+    private String createIdea(String accessToken, UUID tripId, String title) throws Exception {
+        var result = mockMvc.perform(post("/api/v1/trips/{tripId}/activity-ideas", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"%s\",\"estimatedDurationMinutes\":90}".formatted(title)))
+                .andExpect(status().isOk()).andReturn();
+        return JsonPath.read(result.getResponse().getContentAsString(), "$.id");
+    }
+
+    private String scheduleBody(String ideaId, String start, String end) {
+        return """
+                {"activityIdeaId":"%s","scheduledDate":"2027-07-13","startTime":"%s","endTime":"%s"}
+                """.formatted(ideaId, start, end);
     }
 
     private String registerAndLogin(String email, String displayName) throws Exception {

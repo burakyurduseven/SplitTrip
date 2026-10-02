@@ -1,0 +1,127 @@
+import { useMemo, useState } from 'react'
+import type { DragEvent, FormEvent } from 'react'
+
+import type { ActivityIdea, ActivityVoteValue, CreateActivityIdeaInput, ItineraryItem, ScheduleActivityInput, Trip } from './types'
+
+type Props = {
+  trip: Trip
+  ideas: ActivityIdea[]
+  itinerary: ItineraryItem[]
+  onCreateIdea: (input: CreateActivityIdeaInput) => Promise<void>
+  onVote: (ideaId: string, vote: ActivityVoteValue | null) => Promise<void>
+  onSchedule: (input: ScheduleActivityInput) => Promise<ItineraryItem>
+}
+
+const pad = (value: number) => value.toString().padStart(2, '0')
+const minutesToTime = (minutes: number) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`
+const addMinutes = (time: string, amount: number) => {
+  const [hours, minutes] = time.split(':').map(Number)
+  return minutesToTime(Math.min(hours * 60 + minutes + amount, 23 * 60 + 59))
+}
+const readableTime = (time: string) => time.slice(0, 5)
+const dateLabel = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(`${date}T12:00:00`))
+const weekdayLabel = (date: string) => new Intl.DateTimeFormat('en', { weekday: 'short' }).format(new Date(`${date}T12:00:00`))
+
+export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVote, onSchedule }: Props) {
+  const dates = useMemo(() => {
+    const values: string[] = []
+    const current = new Date(`${trip.startDate}T12:00:00`)
+    const last = new Date(`${trip.endDate}T12:00:00`)
+    while (current <= last) {
+      values.push(`${current.getFullYear()}-${pad(current.getMonth() + 1)}-${pad(current.getDate())}`)
+      current.setDate(current.getDate() + 1)
+    }
+    return values
+  }, [trip.startDate, trip.endDate])
+  const slots = useMemo(() => Array.from({ length: 28 }, (_, index) => minutesToTime(8 * 60 + index * 30)), [])
+  const [selectedDate, setSelectedDate] = useState(dates[0])
+  const [ideaFormOpen, setIdeaFormOpen] = useState(false)
+  const [scheduleIdea, setScheduleIdea] = useState<ActivityIdea | null>(null)
+  const [scheduleStart, setScheduleStart] = useState('09:00')
+  const [scheduleEnd, setScheduleEnd] = useState('11:00')
+  const [formError, setFormError] = useState('')
+  const [notice, setNotice] = useState('')
+
+  const openScheduler = (idea: ActivityIdea, start = '09:00') => {
+    setScheduleIdea(idea)
+    setScheduleStart(start)
+    setScheduleEnd(addMinutes(start, idea.estimatedDurationMinutes))
+    setFormError('')
+    setNotice('')
+  }
+
+  const dropIdea = (event: DragEvent, time: string) => {
+    event.preventDefault()
+    const idea = ideas.find(candidate => candidate.id === event.dataTransfer.getData('text/activity-idea'))
+    if (idea && idea.status === 'PROPOSED') openScheduler(idea, time)
+  }
+
+  const createIdea = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    setFormError('')
+    const data = new FormData(event.currentTarget)
+    try {
+      await onCreateIdea({
+        title: String(data.get('title')),
+        description: String(data.get('description')),
+        location: String(data.get('location')),
+        estimatedDurationMinutes: Number(data.get('duration')),
+      })
+      setIdeaFormOpen(false)
+    } catch (reason) {
+      setFormError(reason instanceof Error ? reason.message : 'We could not save this idea.')
+    }
+  }
+
+  const schedule = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!scheduleIdea) return
+    setFormError('')
+    const data = new FormData(event.currentTarget)
+    try {
+      const item = await onSchedule({
+        activityIdeaId: scheduleIdea.id,
+        scheduledDate: String(data.get('date')),
+        startTime: String(data.get('startTime')),
+        endTime: String(data.get('endTime')),
+        note: String(data.get('note')),
+      })
+      setScheduleIdea(null)
+      setSelectedDate(item.scheduledDate)
+      setNotice(item.overlapsExistingItem ? 'Added with a time conflict — you can keep both for now.' : 'Activity added to the itinerary.')
+    } catch (reason) {
+      setFormError(reason instanceof Error ? reason.message : 'We could not schedule this activity.')
+    }
+  }
+
+  const dayItems = itinerary.filter(item => item.scheduledDate === selectedDate)
+
+  return <div className="itinerary-workspace">
+    <aside className="idea-pool">
+      <header><div><p>GROUP BRAINSTORM</p><h2>Idea pool</h2><small>Drag an idea onto a time slot, or tap Schedule.</small></div><button type="button" onClick={() => { setIdeaFormOpen(true); setFormError('') }}>＋ Add idea</button></header>
+      <div className="idea-list">
+        {ideas.length === 0 && <div className="idea-empty"><span>✦</span><strong>Start with a possibility.</strong><small>Everyone in the trip can suggest as many activities as they like.</small></div>}
+        {ideas.map(idea => <article className={`idea-card ${idea.status.toLowerCase()}`} key={idea.id} draggable={idea.status === 'PROPOSED'} onDragStart={event => event.dataTransfer.setData('text/activity-idea', idea.id)}>
+          <div className="idea-card-top"><span>{idea.status === 'SCHEDULED' ? '✓ PLANNED' : '⋮⋮ DRAG TO PLAN'}</span><small>{idea.estimatedDurationMinutes} min</small></div>
+          <h3>{idea.title}</h3>{idea.location && <p>⌖ {idea.location}</p>}{idea.description && <p>{idea.description}</p>}
+          <footer><div className="vote-buttons"><button type="button" className={idea.currentUserVote === 'LIKE' ? 'active' : ''} aria-label={`Like ${idea.title}`} onClick={() => void onVote(idea.id, idea.currentUserVote === 'LIKE' ? null : 'LIKE')}>↑ {idea.likes}</button><button type="button" className={idea.currentUserVote === 'DISLIKE' ? 'active dislike' : ''} aria-label={`Dislike ${idea.title}`} onClick={() => void onVote(idea.id, idea.currentUserVote === 'DISLIKE' ? null : 'DISLIKE')}>↓ {idea.dislikes}</button></div><span>by {idea.createdByName}</span>{idea.status === 'PROPOSED' && <button type="button" onClick={() => openScheduler(idea)}>Schedule</button>}</footer>
+        </article>)}
+      </div>
+    </aside>
+    <section className="timeline-panel">
+      <header><div><p>DAY BY DAY</p><h2>Trip timeline</h2></div><span>{dayItems.length} planned</span></header>
+      <nav className="date-strip" aria-label="Itinerary dates">{dates.map(date => <button key={date} type="button" aria-current={selectedDate === date ? 'date' : undefined} onClick={() => setSelectedDate(date)}><b>{weekdayLabel(date)}</b><span>{dateLabel(date)}</span></button>)}</nav>
+      {notice && <p className="schedule-notice">{notice}</p>}
+      <div className="timeline">
+        {slots.map(time => {
+          const items = dayItems.filter(item => readableTime(item.startTime) === time)
+          return <div className="time-row" key={time} onDragOver={event => event.preventDefault()} onDrop={event => dropIdea(event, time)}><time>{time}</time><div className="time-dropzone">{items.map(item => <article key={item.id}><b>{item.title}</b><span>{readableTime(item.startTime)}–{readableTime(item.endTime)}{item.location ? ` · ${item.location}` : ''}</span>{item.note && <small>{item.note}</small>}</article>)}</div></div>
+        })}
+      </div>
+    </section>
+
+    {ideaFormOpen && <div className="dialog-backdrop" role="presentation"><section className="activity-dialog" role="dialog" aria-modal="true" aria-labelledby="idea-dialog-title"><button className="dialog-close" type="button" aria-label="Close" onClick={() => setIdeaFormOpen(false)}>×</button><p>ADD TO THE MIX</p><h2 id="idea-dialog-title">What should we do?</h2><form onSubmit={createIdea}><label>Activity name<input name="title" required maxLength={120} placeholder="Sunset boat tour" /></label><div className="activity-form-row"><label>Location <span>optional</span><input name="location" maxLength={160} placeholder="Old harbour" /></label><label>Estimated duration<select name="duration" defaultValue="120"><option value="30">30 minutes</option><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option></select></label></div><label>Why this one? <span>optional</span><textarea name="description" maxLength={500} placeholder="Share a detail with the crew..." /></label>{formError && <p className="form-error" role="alert">{formError}</p>}<button className="activity-submit" type="submit">Share idea →</button></form></section></div>}
+
+    {scheduleIdea && <div className="dialog-backdrop" role="presentation"><section className="activity-dialog schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="schedule-dialog-title"><button className="dialog-close" type="button" aria-label="Close" onClick={() => setScheduleIdea(null)}>×</button><p>MAKE IT REAL</p><h2 id="schedule-dialog-title">Place it on the map.</h2><div className="schedule-summary"><strong>{scheduleIdea.title}</strong><span>{scheduleIdea.estimatedDurationMinutes} min suggested</span></div><form onSubmit={schedule}><label>Date<select name="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option value={date} key={date}>{dateLabel(date)}</option>)}</select></label><div className="activity-form-row"><label>Starts<input name="startTime" type="time" value={scheduleStart} onChange={event => { setScheduleStart(event.target.value); setScheduleEnd(addMinutes(event.target.value, scheduleIdea.estimatedDurationMinutes)) }} required /></label><label>Ends<input name="endTime" type="time" value={scheduleEnd} onChange={event => setScheduleEnd(event.target.value)} required /></label></div><label>Plan note <span>optional</span><textarea name="note" maxLength={500} placeholder="Meet by the entrance..." /></label>{formError && <p className="form-error" role="alert">{formError}</p>}<button className="activity-submit" type="submit">Add to itinerary →</button></form></section></div>}
+  </div>
+}

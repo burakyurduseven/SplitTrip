@@ -37,11 +37,11 @@ Exit criterion: one user can create a trip and securely invite another user to j
 
 ## Phase 3 — Itinerary
 
-- Activity model and APIs
-- Daily timeline
-- Unscheduled activities
-- Date and time validation
-- Schedule conflict warnings
+- [x] Activity model and APIs
+- [x] Daily timeline
+- [x] Unscheduled activities
+- [x] Date and time validation
+- [x] Schedule conflict warnings
 
 Exit criterion: a group can collaboratively prepare its daily itinerary.
 

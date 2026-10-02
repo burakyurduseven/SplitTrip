@@ -20,9 +20,21 @@ import com.splittrip.trip.application.TripNotFoundException;
 import com.splittrip.trip.application.InvitationNotFoundException;
 import com.splittrip.trip.application.MembershipConflictException;
 import com.splittrip.trip.application.TripAccessDeniedException;
+import com.splittrip.trip.application.InvalidItineraryException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(InvalidItineraryException.class)
+    ResponseEntity<ProblemDetail> handleInvalidItinerary(
+            InvalidItineraryException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        problem.setTitle("Invalid itinerary item");
+        problem.setType(URI.create("https://splittrip.app/problems/invalid-itinerary-item"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.badRequest().body(problem);
+    }
 
     @ExceptionHandler(InvitationNotFoundException.class)
     ResponseEntity<ProblemDetail> handleInvitationNotFound(
