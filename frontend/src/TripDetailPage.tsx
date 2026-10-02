@@ -16,6 +16,9 @@ type Props = {
   balances: BalanceSummary | null
   settlements: Settlement[]
   currentUserId: string
+  loading: boolean
+  loadError: string
+  onRetry: () => void
   onNavigate: (page: AppPage) => void
   onCreateTrip: () => void
   onCreateInvitation: () => Promise<{ url: string; expiresAt: string }>
@@ -41,7 +44,7 @@ function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy:
   return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p><button type="button" disabled>Coming next</button></div>
 }
 
-export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
+export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
   const [section, setSection] = useState<Section>('overview')
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
@@ -91,18 +94,20 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
         </section>
 
         <nav className="detail-tabs" aria-label="Trip sections">
-          {sections.map(value => <button key={value} type="button" aria-current={section === value ? 'page' : undefined} onClick={() => setSection(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}
+          {sections.map(value => <button key={value} type="button" disabled={loading} aria-current={section === value ? 'page' : undefined} onClick={() => setSection(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}
         </nav>
 
         <section className="detail-content">
-          {section === 'overview' && <div className="overview-layout">
+          {loading && <div className="trip-detail-skeleton" role="status" aria-label="Loading trip details"><div className="skeleton-panel"><i /><i /><i /><i /></div><div className="skeleton-stack"><i /><i /></div><span>Gathering the latest trip details...</span></div>}
+          {!loading && loadError && <div className="trip-load-error" role="alert"><span>!</span><div><h2>We hit a detour.</h2><p>{loadError}</p></div><button type="button" onClick={onRetry}>Try again</button></div>}
+          {!loading && !loadError && section === 'overview' && <div className="overview-layout">
             <article className="detail-panel detail-plan"><header><div><p>NEXT UP</p><h2>Your itinerary</h2></div><button type="button" onClick={() => setSection('itinerary')}>View itinerary →</button></header><EmptyModule icon="⌁" title="The days are yours to shape." copy="Activities will appear here once you start building the itinerary." /></article>
             <aside className="detail-side-stack"><article className="detail-panel"><p className="panel-kicker">TRIP CREW</p><h2>Travelling together</h2>{members.slice(0, 2).map(member => <div className="current-member" key={member.userId}><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.role.toLowerCase()}</small></div></div>)}<button type="button" className="panel-link" onClick={() => setSection('members')}>See members →</button></article><article className="detail-panel money-panel"><p className="panel-kicker">SHARED MONEY</p><h2>{currentBalance === 0 ? 'Nothing to settle.' : currentBalance > 0 ? `You get back ${trip.defaultCurrency} ${formattedBalance}.` : `You owe ${trip.defaultCurrency} ${formattedBalance}.`}</h2><p>{expenses.length ? 'Your position is calculated from every expense and share in this trip.' : 'Add expenses during the trip and SplitTrip will keep the group even.'}</p><button type="button" className="panel-link" onClick={() => setSection(expenses.length ? 'balances' : 'expenses')}>{expenses.length ? 'See balances' : 'See expenses'} →</button></article></aside>
           </div>}
-          {section === 'itinerary' && <ItineraryWorkspace trip={trip} ideas={ideas} itinerary={itinerary} onCreateIdea={onCreateIdea} onVote={onVote} onSchedule={onSchedule} onUpdateSchedule={onUpdateSchedule} onRemoveSchedule={onRemoveSchedule} />}
-          {section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} />}
-          {section === 'balances' && <BalanceWorkspace trip={trip} summary={balances} settlements={settlements} currentUserId={currentUserId} onRecord={onRecordSettlement} onVoid={onVoidSettlement} />}
-          {section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}
+          {!loading && !loadError && section === 'itinerary' && <ItineraryWorkspace trip={trip} ideas={ideas} itinerary={itinerary} onCreateIdea={onCreateIdea} onVote={onVote} onSchedule={onSchedule} onUpdateSchedule={onUpdateSchedule} onRemoveSchedule={onRemoveSchedule} />}
+          {!loading && !loadError && section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} />}
+          {!loading && !loadError && section === 'balances' && <BalanceWorkspace trip={trip} summary={balances} settlements={settlements} currentUserId={currentUserId} onRecord={onRecordSettlement} onVoid={onVoidSettlement} />}
+          {!loading && !loadError && section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}
         </section>
       </main>
       {inviteOpen && <div className="dialog-backdrop" role="presentation"><section className="invite-dialog" role="dialog" aria-modal="true" aria-labelledby="invite-title"><button type="button" aria-label="Close invitation" onClick={() => setInviteOpen(false)}>×</button><p>BRING YOUR PEOPLE</p><h2 id="invite-title">Share the journey.</h2>{inviteLoading && <div className="invite-loading">Creating a secure link...</div>}{inviteError && <p className="form-error" role="alert"><span>!</span>{inviteError}</p>}{inviteUrl && <><label>Invitation link<input value={inviteUrl} readOnly /></label><small>Single use · Expires {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(inviteExpiry))}</small><button className="copy-invite" type="button" onClick={() => void copyInvitation()}>Copy invitation link</button></>}</section></div>}

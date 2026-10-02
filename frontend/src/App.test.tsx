@@ -82,4 +82,27 @@ describe('App', () => {
     const retryHeaders = fetchMock.mock.calls[5][1]?.headers as Headers
     expect(retryHeaders.get('Authorization')).toBe('Bearer fresh-token')
   })
+
+  it('shows a recoverable error when trip details cannot be loaded', async () => {
+    const trip = { id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'user-1', displayName: 'Burak', email: 'burak@example.com', createdAt: '2026-10-02T00:00:00Z' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => [trip] })
+      .mockResolvedValueOnce({ ok: true, json: async () => trip })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ totalSpent: 0, members: [], suggestedTransfers: [] }) })
+      .mockResolvedValueOnce({ ok: false, json: async () => ({ detail: 'Settlement history is temporarily unavailable.' }) }))
+
+    render(<App />)
+    fireEvent.click(within(await screen.findByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Trips/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Open Aegean Summer' }))
+
+    expect(await screen.findByRole('heading', { name: 'We hit a detour.' })).toBeDefined()
+    expect(screen.getByText('Settlement history is temporarily unavailable.')).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeDefined()
+  })
 })

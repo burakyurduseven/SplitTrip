@@ -50,6 +50,8 @@ function App() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [balances, setBalances] = useState<BalanceSummary | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [tripLoading, setTripLoading] = useState(false)
+  const [tripLoadError, setTripLoadError] = useState('')
   const [invitation, setInvitation] = useState<InvitationPreview | null>(null)
   const [invitationToken, setInvitationToken] = useState('')
   const [joining, setJoining] = useState(false)
@@ -65,6 +67,7 @@ function App() {
     setExpenses([])
     setBalances(null)
     setSettlements([])
+    setTripLoadError('')
     setUser(null)
     setMode('login')
   }
@@ -224,10 +227,12 @@ function App() {
     setPage(nextPage)
   }
 
-  const openTrip = async (trip: Trip) => {
+  const openTrip = async (trip: Trip, updateHistory = true) => {
     setSelectedTrip(trip)
     setPage('trip')
-    window.history.pushState({}, '', `/trips/${trip.id}`)
+    setTripLoading(true)
+    setTripLoadError('')
+    if (updateHistory) window.history.pushState({}, '', `/trips/${trip.id}`)
     try {
       const [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse] = await Promise.all([
         authenticatedFetch(`/api/v1/trips/${trip.id}`),
@@ -238,6 +243,11 @@ function App() {
         authenticatedFetch(`/api/v1/trips/${trip.id}/balances`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/settlements`),
       ])
+      const failedResponse = [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse].find(response => !response.ok)
+      if (failedResponse) {
+        const problem = await readProblem(failedResponse)
+        throw new Error(problem.detail ?? 'Some trip information could not be loaded.')
+      }
       if (tripResponse.ok) setSelectedTrip(await tripResponse.json() as Trip)
       if (membersResponse.ok) setMembers(await membersResponse.json() as TripMember[])
       if (ideasResponse.ok) setIdeas(await ideasResponse.json() as ActivityIdea[])
@@ -245,8 +255,10 @@ function App() {
       if (expensesResponse.ok) setExpenses(await expensesResponse.json() as Expense[])
       if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
       if (settlementsResponse.ok) setSettlements(await settlementsResponse.json() as Settlement[])
-    } catch {
-      // Keep the list representation visible if the detail refresh is temporarily unavailable.
+    } catch (reason) {
+      setTripLoadError(reason instanceof Error ? reason.message : 'We could not load this trip. Check your connection and try again.')
+    } finally {
+      setTripLoading(false)
     }
   }
 
@@ -409,7 +421,7 @@ function App() {
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
     const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip) => void openTrip(trip), onCreateTrip: createTrip, onLogout: logout }
-    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} currentUserId={user.id} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
+    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} currentUserId={user.id} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

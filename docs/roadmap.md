@@ -68,7 +68,7 @@ Exit criterion: a group can settle its trip debts through the application.
 
 ## Phase 6 — Product quality
 
-- Loading, empty, and error states
+- [x] Loading, empty, and error states
 - Responsive and accessibility review
 - Security and authorization tests
 - N+1, query plan, and index review
