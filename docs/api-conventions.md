@@ -42,3 +42,16 @@ Errors follow RFC 9457 Problem Details. Validation errors include an `errors` ob
   }
 }
 ```
+
+## Authentication
+
+- `POST /api/v1/auth/register` creates an account.
+- `POST /api/v1/auth/login` returns a short-lived bearer access token and creates a refresh session.
+- `POST /api/v1/auth/refresh` rotates the refresh session and returns a new access token.
+- `DELETE /api/v1/auth/logout` revokes the current refresh session.
+- `GET /api/v1/users/me` returns the profile associated with a valid access token.
+
+Access tokens are sent in the `Authorization: Bearer <token>` header. Refresh tokens are opaque,
+stored only in an `HttpOnly` and `SameSite=Strict` cookie, rotated whenever they are used, and stored
+as SHA-256 hashes in the database. Production environments must enable the cookie's `Secure` flag
+and provide a private Base64-encoded `JWT_SECRET` containing at least 256 bits.

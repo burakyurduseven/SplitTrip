@@ -13,9 +13,22 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.splittrip.auth.application.EmailAlreadyInUseException;
+import com.splittrip.auth.application.InvalidCredentialsException;
+import com.splittrip.auth.application.InvalidRefreshTokenException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler({InvalidCredentialsException.class, InvalidRefreshTokenException.class})
+    ResponseEntity<ProblemDetail> handleUnauthorized(
+            RuntimeException exception,
+            HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.UNAUTHORIZED, exception.getMessage());
+        problem.setTitle("Authentication failed");
+        problem.setType(URI.create("https://splittrip.app/problems/authentication-failed"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problem);
+    }
 
     @ExceptionHandler(EmailAlreadyInUseException.class)
     ResponseEntity<ProblemDetail> handleEmailAlreadyInUse(

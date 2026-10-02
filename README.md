@@ -40,6 +40,9 @@ npm run dev
 - Swagger UI: http://localhost:8080/swagger-ui.html
 - Actuator health: http://localhost:8080/actuator/health
 
+The built-in JWT secret and non-secure refresh cookie are for local development only. Production
+environments must set a private Base64-encoded `JWT_SECRET` and `REFRESH_COOKIE_SECURE=true`.
+
 ## Quality checks
 
 ```powershell

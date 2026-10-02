@@ -15,11 +15,11 @@ Each phase is divided into small vertical slices that are completed with working
 - [x] User migration and entity
 - [x] Registration use case and API
 - [x] BCrypt password hashing and validation
-- [ ] Sign-in and short-lived access JWT
-- [ ] Secure refresh and sign-out approach
-- [ ] Profile endpoint
+- [x] Sign-in and short-lived access JWT
+- [x] Secure refresh and sign-out approach
+- [x] Profile endpoint
 - [ ] Registration and sign-in screens
-- [x] Registration unit and integration tests
+- [x] Registration and authentication backend tests
 
 Exit criterion: a user can register, sign in, and access their profile only with a valid session.
 
