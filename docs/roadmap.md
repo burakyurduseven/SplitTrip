@@ -71,7 +71,7 @@ Exit criterion: a group can settle its trip debts through the application.
 - [x] Loading, empty, and error states
 - Responsive and accessibility review
 - [x] Security and authorization tests
-- N+1, query plan, and index review
+- [x] N+1, query plan, and index review
 - Stronger test coverage
 
 ## Phase 7 — Delivery and portfolio

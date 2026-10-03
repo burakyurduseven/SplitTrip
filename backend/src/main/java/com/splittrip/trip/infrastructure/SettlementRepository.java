@@ -12,5 +12,7 @@ public interface SettlementRepository extends JpaRepository<Settlement, UUID> {
         where settlement.trip.id = :tripId order by settlement.settlementDate desc, settlement.createdAt desc
         """)
     List<Settlement> findByTripId(@Param("tripId") UUID tripId);
+    @Query("select settlement from Settlement settlement join fetch settlement.fromUser join fetch settlement.toUser where settlement.trip.id = :tripId and settlement.status = 'ACTIVE'")
+    List<Settlement> findActiveByTripId(@Param("tripId") UUID tripId);
     Optional<Settlement> findByIdAndTripId(UUID id, UUID tripId);
 }

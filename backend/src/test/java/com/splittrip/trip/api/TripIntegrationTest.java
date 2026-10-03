@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
 
@@ -37,6 +38,8 @@ import com.splittrip.trip.infrastructure.SettlementRepository;
 import com.splittrip.trip.infrastructure.TripRepository;
 import com.splittrip.user.infrastructure.UserAccountRepository;
 import com.splittrip.trip.domain.TripMember;
+import jakarta.persistence.EntityManagerFactory;
+import org.hibernate.SessionFactory;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -70,6 +73,9 @@ class TripIntegrationTest {
 
     @Autowired
     private UserAccountRepository userRepository;
+
+    @Autowired
+    private EntityManagerFactory entityManagerFactory;
 
     @BeforeEach
     void cleanDatabase() {
@@ -298,6 +304,32 @@ class TripIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content("{\"value\":\"DISLIKE\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.likes").value(0))
                 .andExpect(jsonPath("$.dislikes").value(1));
+    }
+
+    @Test
+    void listsIdeasWithVotesInAConstantNumberOfQueries() throws Exception {
+        var token = registerAndLogin("ada@example.com", "Ada Lovelace");
+        var tripId = createTrip(token, "Aegean Summer");
+        for (var title : java.util.List.of("Boat tour", "Museum", "Sunset walk")) {
+            var ideaId = createIdea(token, tripId, title);
+            mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                            "/api/v1/trips/{tripId}/activity-ideas/{ideaId}/vote", tripId, ideaId)
+                            .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"value\":\"LIKE\"}"))
+                    .andExpect(status().isOk());
+        }
+
+        var statistics = entityManagerFactory.unwrap(SessionFactory.class).getStatistics();
+        statistics.setStatisticsEnabled(true);
+        statistics.clear();
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/activity-ideas", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(3)))
+                .andExpect(jsonPath("$[0].likes").value(1));
+
+        assertTrue(statistics.getPrepareStatementCount() <= 3,
+                "Idea listing should use membership, batched vote, and idea queries only.");
     }
 
     @Test

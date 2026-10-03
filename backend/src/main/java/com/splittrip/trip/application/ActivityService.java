@@ -38,7 +38,8 @@ public class ActivityService {
     @Transactional(readOnly = true)
     public List<IdeaView> listIdeas(UUID tripId, UUID userId) {
         requireMembership(tripId, userId);
-        return ideaRepository.findVisibleByTripId(tripId).stream().map(idea -> toIdeaView(idea, userId)).toList();
+        var votesByIdea = voteRepository.findByTripId(tripId).stream().collect(java.util.stream.Collectors.groupingBy(ActivityVote::getActivityIdeaId));
+        return ideaRepository.findVisibleByTripId(tripId).stream().map(idea -> toIdeaView(idea, userId, votesByIdea.getOrDefault(idea.getId(), List.of()))).toList();
     }
 
     @Transactional
@@ -46,7 +47,7 @@ public class ActivityService {
         requireMembership(tripId, userId);
         var idea = requireIdea(tripId, ideaId);
         var user = activeUser(userId);
-        var vote = voteRepository.findByActivityIdeaIdAndUser_Id(ideaId, userId)
+        var vote = voteRepository.findByActivityIdea_IdAndUser_Id(ideaId, userId)
                 .orElseGet(() -> ActivityVote.create(idea, user, value));
         vote.changeTo(value);
         voteRepository.save(vote);
@@ -57,7 +58,7 @@ public class ActivityService {
     public void removeVote(UUID tripId, UUID ideaId, UUID userId) {
         requireMembership(tripId, userId);
         requireIdea(tripId, ideaId);
-        voteRepository.findByActivityIdeaIdAndUser_Id(ideaId, userId).ifPresent(voteRepository::delete);
+        voteRepository.findByActivityIdea_IdAndUser_Id(ideaId, userId).ifPresent(voteRepository::delete);
     }
 
     @Transactional
@@ -124,7 +125,10 @@ public class ActivityService {
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 
     private IdeaView toIdeaView(ActivityIdea idea, UUID userId) {
-        var votes = voteRepository.findByActivityIdeaId(idea.getId());
+        var votes = voteRepository.findByActivityIdea_Id(idea.getId());
+        return toIdeaView(idea, userId, votes);
+    }
+    private IdeaView toIdeaView(ActivityIdea idea, UUID userId, List<ActivityVote> votes) {
         var likes = votes.stream().filter(vote -> vote.getValue() == ActivityVoteValue.LIKE).count();
         var dislikes = votes.stream().filter(vote -> vote.getValue() == ActivityVoteValue.DISLIKE).count();
         var currentVote = votes.stream().filter(vote -> vote.getUserId().equals(userId)).map(ActivityVote::getValue).findFirst().orElse(null);

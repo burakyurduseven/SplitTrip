@@ -22,5 +22,5 @@ public class ActivityVote {
     }
     public static ActivityVote create(ActivityIdea idea, UserAccount user, ActivityVoteValue value) { return new ActivityVote(idea, user, value); }
     public void changeTo(ActivityVoteValue value) { this.value = value; updatedAt = Instant.now(); }
-    public UUID getUserId() { return user.getId(); } public ActivityVoteValue getValue() { return value; }
+    public UUID getActivityIdeaId() { return activityIdea.getId(); } public UUID getUserId() { return user.getId(); } public ActivityVoteValue getValue() { return value; }
 }

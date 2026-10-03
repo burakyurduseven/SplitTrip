@@ -32,7 +32,7 @@ public class BalanceService {
                 net.computeIfPresent(participantId, (id, value) -> value.subtract(share.getAmount()));
             }
         }
-        settlementRepository.findByTripId(tripId).stream().filter(settlement -> settlement.getStatus() == com.splittrip.trip.domain.SettlementStatus.ACTIVE).forEach(settlement -> {
+        settlementRepository.findActiveByTripId(tripId).forEach(settlement -> {
             net.computeIfPresent(settlement.getFromUser().getId(), (id, value) -> value.add(settlement.getAmount()));
             net.computeIfPresent(settlement.getToUser().getId(), (id, value) -> value.subtract(settlement.getAmount()));
         });
