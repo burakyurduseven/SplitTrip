@@ -54,7 +54,7 @@ export function ExpenseWorkspace({ trip, members, expenses, onSave, onDelete }: 
         <div className={`expense-icon tone-${index % 3}`}>{expense.title.slice(0, 1).toUpperCase()}</div>
         <div className="expense-main"><div><h3>{expense.title}</h3><span>{prettyDate(expense.expenseDate)} · paid by {expense.paidByName}</span></div><div><strong>{money(Number(expense.amount), trip.defaultCurrency)}</strong><small>{expense.splitMethod.toLowerCase()}</small></div></div>
         <div className="expense-shares">{expense.shares.map(share => <span key={share.userId}>{share.displayName.split(' ')[0]} <b>{money(Number(share.amount), trip.defaultCurrency)}</b></span>)}</div>
-        <button className="expense-edit" type="button" onClick={() => openEdit(expense)}>Edit</button>
+        <button className="expense-edit" type="button" aria-label={`Edit ${expense.title}`} onClick={() => openEdit(expense)}>Edit</button>
       </article>)}</div>
     </section>
 

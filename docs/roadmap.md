@@ -51,7 +51,7 @@ Exit criterion: a group can collaboratively prepare its daily itinerary.
 - [x] Equal split
 - [x] Exact-amount split
 - [x] Percentage split
-- Minor-unit distribution and comprehensive unit tests
+- [x] Minor-unit distribution and comprehensive unit tests
 - [x] Expense creation and editing interfaces
 
 Exit criterion: all three split methods produce precise, tested results.
@@ -69,10 +69,10 @@ Exit criterion: a group can settle its trip debts through the application.
 ## Phase 6 — Product quality
 
 - [x] Loading, empty, and error states
-- Responsive and accessibility review
+- [x] Responsive and accessibility review
 - [x] Security and authorization tests
 - [x] N+1, query plan, and index review
-- Stronger test coverage
+- [x] Stronger test coverage
 
 ## Phase 7 — Delivery and portfolio
 

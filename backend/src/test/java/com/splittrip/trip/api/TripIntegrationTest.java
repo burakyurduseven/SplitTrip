@@ -436,6 +436,48 @@ class TripIntegrationTest {
     }
 
     @Test
+    void distributesMoneyToTheCentAcrossAllSplitMethods() throws Exception {
+        var token = registerAndLogin("ada@example.com", "Ada Lovelace");
+        registerAndLogin("grace@example.com", "Grace Hopper");
+        registerAndLogin("linus@example.com", "Linus Torvalds");
+        var tripId = createTrip(token, "Aegean Summer");
+        var trip = tripRepository.findById(tripId).orElseThrow();
+        var ada = userRepository.findByEmail("ada@example.com").orElseThrow();
+        var grace = userRepository.findByEmail("grace@example.com").orElseThrow();
+        var linus = userRepository.findByEmail("linus@example.com").orElseThrow();
+        tripMemberRepository.save(TripMember.member(trip, grace));
+        tripMemberRepository.save(TripMember.member(trip, linus));
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/expenses", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Taxi","amount":100.00,"expenseDate":"2027-07-13","paidById":"%s","splitMethod":"EQUAL","participants":[{"userId":"%s"},{"userId":"%s"},{"userId":"%s"}]}
+                                """.formatted(ada.getId(), ada.getId(), grace.getId(), linus.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.shares[0].amount").value(33.33))
+                .andExpect(jsonPath("$.shares[1].amount").value(33.33))
+                .andExpect(jsonPath("$.shares[2].amount").value(33.34));
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/expenses", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Snacks","amount":10.01,"expenseDate":"2027-07-13","paidById":"%s","splitMethod":"PERCENTAGE","participants":[{"userId":"%s","percentage":33.33},{"userId":"%s","percentage":33.33},{"userId":"%s","percentage":33.34}]}
+                                """.formatted(ada.getId(), ada.getId(), grace.getId(), linus.getId())))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.shares[0].amount").value(3.34))
+                .andExpect(jsonPath("$.shares[1].amount").value(3.34))
+                .andExpect(jsonPath("$.shares[2].amount").value(3.33));
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/expenses", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Tickets","amount":50.00,"expenseDate":"2027-07-13","paidById":"%s","splitMethod":"EXACT","participants":[{"userId":"%s","amount":20.00},{"userId":"%s","amount":20.00}]}
+                                """.formatted(ada.getId(), ada.getId(), grace.getId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Exact shares must add up to the expense total."));
+    }
+
+    @Test
     void calculatesBalancesAndSimplifiesTransfers() throws Exception {
         var ownerToken = registerAndLogin("ada@example.com", "Ada Lovelace");
         registerAndLogin("linus@example.com", "Linus Torvalds");
@@ -461,6 +503,14 @@ class TripIntegrationTest {
                 .andExpect(jsonPath("$.suggestedTransfers[0].fromName").value("Linus Torvalds"))
                 .andExpect(jsonPath("$.suggestedTransfers[0].toName").value("Ada Lovelace"))
                 .andExpect(jsonPath("$.suggestedTransfers[0].amount").value(50.00));
+
+        mockMvc.perform(post("/api/v1/trips/{tripId}/settlements", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"fromUserId":"%s","toUserId":"%s","amount":50.01,"settlementDate":"2027-07-15"}
+                                """.formatted(member.getId(), owner.getId())))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Payment cannot exceed the outstanding suggested amount."));
 
         var payment = mockMvc.perform(post("/api/v1/trips/{tripId}/settlements", tripId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken))
