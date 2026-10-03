@@ -33,6 +33,7 @@ import com.splittrip.trip.infrastructure.ActivityIdeaRepository;
 import com.splittrip.trip.infrastructure.ActivityVoteRepository;
 import com.splittrip.trip.infrastructure.ItineraryItemRepository;
 import com.splittrip.trip.infrastructure.ExpenseRepository;
+import com.splittrip.trip.infrastructure.SettlementRepository;
 import com.splittrip.trip.infrastructure.TripRepository;
 import com.splittrip.user.infrastructure.UserAccountRepository;
 import com.splittrip.trip.domain.TripMember;
@@ -57,6 +58,7 @@ class TripIntegrationTest {
 
     @Autowired private ItineraryItemRepository itineraryItemRepository;
     @Autowired private ExpenseRepository expenseRepository;
+    @Autowired private SettlementRepository settlementRepository;
     @Autowired private ActivityVoteRepository activityVoteRepository;
     @Autowired private ActivityIdeaRepository activityIdeaRepository;
 
@@ -71,6 +73,7 @@ class TripIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        settlementRepository.deleteAll();
         expenseRepository.deleteAll();
         itineraryItemRepository.deleteAll();
         activityVoteRepository.deleteAll();
@@ -124,6 +127,58 @@ class TripIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, bearer(graceToken)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.title").value("Trip not found"));
+    }
+
+    @Test
+    void isolatesEveryTripResourceFromNonMembers() throws Exception {
+        var ownerToken = registerAndLogin("owner@example.com", "Trip Owner");
+        var outsiderToken = registerAndLogin("outsider@example.com", "Outside User");
+        var tripId = createTrip(ownerToken, "Private Journey");
+
+        var protectedPaths = java.util.List.of(
+                "/api/v1/trips/%s".formatted(tripId),
+                "/api/v1/trips/%s/members".formatted(tripId),
+                "/api/v1/trips/%s/activity-ideas".formatted(tripId),
+                "/api/v1/trips/%s/itinerary".formatted(tripId),
+                "/api/v1/trips/%s/expenses".formatted(tripId),
+                "/api/v1/trips/%s/balances".formatted(tripId),
+                "/api/v1/trips/%s/settlements".formatted(tripId));
+
+        for (var path : protectedPaths) {
+            mockMvc.perform(get(path).header(HttpHeaders.AUTHORIZATION, bearer(outsiderToken)))
+                    .andExpect(status().isNotFound())
+                    .andExpect(jsonPath("$.title").value("Trip not found"));
+        }
+    }
+
+    @Test
+    void preventsCrossTripResourceMutation() throws Exception {
+        var adaToken = registerAndLogin("ada@example.com", "Ada Lovelace");
+        var graceToken = registerAndLogin("grace@example.com", "Grace Hopper");
+        var adaTrip = createTrip(adaToken, "Ada's Trip");
+        var graceTrip = createTrip(graceToken, "Grace's Trip");
+        var ideaId = createIdea(adaToken, adaTrip, "Secret plan");
+        var scheduled = mockMvc.perform(post("/api/v1/trips/{tripId}/itinerary", adaTrip)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(adaToken)).contentType(MediaType.APPLICATION_JSON)
+                        .content(scheduleBody(ideaId, "10:00", "11:00")))
+                .andExpect(status().isOk()).andReturn();
+        String itemId = JsonPath.read(scheduled.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/v1/trips/{tripId}/itinerary/{itemId}", graceTrip, itemId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(graceToken)).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"scheduledDate":"2027-07-15","startTime":"12:00","endTime":"13:00"}
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Scheduled activity not found."));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/v1/trips/{tripId}/activity-ideas/{ideaId}/vote", graceTrip, ideaId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(graceToken)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"value\":\"LIKE\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value("Activity idea not found."));
     }
 
     @Test
