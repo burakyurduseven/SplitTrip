@@ -44,7 +44,7 @@ const sections: Section[] = ['overview', 'itinerary', 'expenses', 'balances', 'm
 const formatDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`))
 
 function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy: string }) {
-  return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p><button type="button" disabled>Coming next</button></div>
+  return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p></div>
 }
 
 export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onUpdateTrip, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
