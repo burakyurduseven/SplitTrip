@@ -5,6 +5,7 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -107,6 +108,47 @@ class TripIntegrationTest {
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
                 .andExpect(jsonPath("$.currentUserRole").value("OWNER"))
                 .andExpect(jsonPath("$.ownerId").exists());
+    }
+
+    @Test
+    void letsTheOwnerUpdateTripDetails() throws Exception {
+        var ownerToken = registerAndLogin("owner@example.com", "Trip Owner");
+        var tripId = createTrip(ownerToken, "Aegean Summer");
+
+        mockMvc.perform(put("/api/v1/trips/{tripId}", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "title": "Aegean Autumn",
+                                  "destination": "Bodrum, Türkiye",
+                                  "description": "A quieter escape",
+                                  "startDate": "2027-09-10",
+                                  "endDate": "2027-09-15",
+                                  "defaultCurrency": "eur"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.title").value("Aegean Autumn"))
+                .andExpect(jsonPath("$.destination").value("Bodrum, Türkiye"))
+                .andExpect(jsonPath("$.defaultCurrency").value("EUR"));
+    }
+
+    @Test
+    void preventsMembersFromUpdatingTripDetails() throws Exception {
+        var ownerToken = registerAndLogin("owner@example.com", "Trip Owner");
+        var memberToken = registerAndLogin("member@example.com", "Trip Member");
+        var tripId = createTrip(ownerToken, "Aegean Summer");
+        var trip = tripRepository.findById(tripId).orElseThrow();
+        var member = userRepository.findByEmail("member@example.com").orElseThrow();
+        tripMemberRepository.save(TripMember.member(trip, member));
+
+        mockMvc.perform(put("/api/v1/trips/{tripId}", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(memberToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(validTrip("Changed by member")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.detail").value("Only the trip owner can edit this trip."));
     }
 
     @Test

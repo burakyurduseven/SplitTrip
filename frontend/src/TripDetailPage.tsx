@@ -4,8 +4,9 @@ import { AppNavigation } from './AppNavigation'
 import { ItineraryWorkspace } from './ItineraryWorkspace'
 import { ExpenseWorkspace } from './ExpenseWorkspace'
 import { BalanceWorkspace } from './BalanceWorkspace'
+import { EditTripDialog } from './EditTripDialog'
 import type { AppPage, TripSection } from './AppNavigation'
-import type { ActivityIdea, ActivityVoteValue, BalanceSummary, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput } from './types'
+import type { ActivityIdea, ActivityVoteValue, BalanceSummary, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
 
 type Props = {
   trip: Trip
@@ -23,6 +24,7 @@ type Props = {
   onNavigate: (page: AppPage) => void
   onCreateTrip: () => void
   onCreateInvitation: () => Promise<{ url: string; expiresAt: string }>
+  onUpdateTrip: (input: UpdateTripInput) => Promise<void>
   onCreateIdea: (input: CreateActivityIdeaInput) => Promise<void>
   onVote: (ideaId: string, vote: ActivityVoteValue | null) => Promise<void>
   onSchedule: (input: ScheduleActivityInput) => Promise<ItineraryItem>
@@ -45,13 +47,14 @@ function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy:
   return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p><button type="button" disabled>Coming next</button></div>
 }
 
-export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
+export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onUpdateTrip, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
   const [section, setSection] = useState<Section>(initialSection)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
   const [inviteExpiry, setInviteExpiry] = useState('')
   const [inviteError, setInviteError] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [editingTrip, setEditingTrip] = useState(false)
   const days = Math.max(1, Math.round((new Date(`${trip.endDate}T00:00:00`).getTime() - new Date(`${trip.startDate}T00:00:00`).getTime()) / 86400000) + 1)
   const totalSpent = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
   const currentBalance = Number(balances?.members.find(member => member.userId === currentUserId)?.netBalance ?? 0)
@@ -84,7 +87,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
         <section className="detail-hero">
           <div className="detail-route" aria-hidden="true"><i /><i /><i /><svg viewBox="0 0 900 220"><path d="M-20 175C125 36 247 220 382 104S650 32 930 142" /></svg></div>
           <div className="detail-hero-copy"><div><span className="detail-role">{trip.currentUserRole}</span><span className="detail-status">{trip.status}</span></div><p>YOUR TRIP</p><h1>{trip.title}</h1><div className="detail-meta"><span>⌖ {trip.destination}</span><span>□ {formatDate(trip.startDate)} – {formatDate(trip.endDate)}</span><span>◷ {days} {days === 1 ? 'day' : 'days'}</span></div>{trip.description && <blockquote>{trip.description}</blockquote>}</div>
-          <div className="detail-actions"><button type="button" disabled title="Trip editing will be added in a later phase">Edit trip</button><button type="button" disabled={trip.currentUserRole !== 'OWNER'} onClick={() => void createInvitation()}>Invite people ＋</button></div>
+          <div className="detail-actions"><button type="button" disabled={trip.currentUserRole !== 'OWNER'} title={trip.currentUserRole !== 'OWNER' ? 'Only the trip owner can edit this trip' : undefined} onClick={() => setEditingTrip(true)}>Edit trip</button><button type="button" disabled={trip.currentUserRole !== 'OWNER'} onClick={() => void createInvitation()}>Invite people ＋</button></div>
         </section>
 
         <section className="detail-stats" aria-label="Trip summary">
@@ -111,6 +114,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
           {!loading && !loadError && section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}
         </section>
       </main>
+      {editingTrip && <EditTripDialog trip={trip} currencyLocked={expenses.length > 0} onClose={() => setEditingTrip(false)} onUpdate={onUpdateTrip} />}
       {inviteOpen && <div className="dialog-backdrop" role="presentation"><section className="invite-dialog" role="dialog" aria-modal="true" aria-labelledby="invite-title"><button type="button" aria-label="Close invitation" onClick={() => setInviteOpen(false)}>×</button><p>BRING YOUR PEOPLE</p><h2 id="invite-title">Share the journey.</h2>{inviteLoading && <div className="invite-loading">Creating a secure link...</div>}{inviteError && <p className="form-error" role="alert"><span>!</span>{inviteError}</p>}{inviteUrl && <><label>Invitation link<input value={inviteUrl} readOnly /></label><small>Single use · Expires {new Intl.DateTimeFormat('en', { dateStyle: 'medium' }).format(new Date(inviteExpiry))}</small><button className="copy-invite" type="button" onClick={() => void copyInvitation()}>Copy invitation link</button></>}</section></div>}
     </div>
   )

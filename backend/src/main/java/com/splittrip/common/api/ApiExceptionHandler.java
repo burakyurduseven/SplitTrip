@@ -22,9 +22,19 @@ import com.splittrip.trip.application.MembershipConflictException;
 import com.splittrip.trip.application.TripAccessDeniedException;
 import com.splittrip.trip.application.InvalidItineraryException;
 import com.splittrip.trip.application.InvalidExpenseException;
+import com.splittrip.trip.application.TripUpdateConflictException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(TripUpdateConflictException.class)
+    ResponseEntity<ProblemDetail> handleTripUpdateConflict(TripUpdateConflictException exception, HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setTitle("Trip update conflict");
+        problem.setType(URI.create("https://splittrip.app/problems/trip-update-conflict"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
 
     @ExceptionHandler(InvalidExpenseException.class)
     ResponseEntity<ProblemDetail> handleInvalidExpense(InvalidExpenseException exception, HttpServletRequest request) {

@@ -6,6 +6,9 @@ import org.springframework.data.repository.query.Param;
 import com.splittrip.trip.domain.Expense;
 
 public interface ExpenseRepository extends JpaRepository<Expense, UUID> {
+    boolean existsByTripId(UUID tripId);
+    boolean existsByTripIdAndExpenseDateBefore(UUID tripId, java.time.LocalDate date);
+    boolean existsByTripIdAndExpenseDateAfter(UUID tripId, java.time.LocalDate date);
     @Query("select distinct expense from Expense expense join fetch expense.paidBy join fetch expense.createdBy left join fetch expense.shares share left join fetch share.user where expense.trip.id = :tripId order by expense.expenseDate desc, expense.createdAt desc")
     List<Expense> findByTripIdWithShares(@Param("tripId") UUID tripId);
     @Query("select distinct expense from Expense expense join fetch expense.paidBy join fetch expense.createdBy left join fetch expense.shares share left join fetch share.user where expense.id = :id and expense.trip.id = :tripId")

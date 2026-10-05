@@ -6,7 +6,7 @@ import { TripsPage } from './TripsPage'
 import { TripDetailPage } from './TripDetailPage'
 import { InvitationPage } from './InvitationPage'
 import type { AppPage, TripSection } from './AppNavigation'
-import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput } from './types'
+import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
 
 type AuthMode = 'login' | 'register'
 
@@ -275,6 +275,15 @@ function App() {
     return { url: `${window.location.origin}/invitations/${created.token}`, expiresAt: created.expiresAt }
   }
 
+  const updateTrip = async (input: UpdateTripInput) => {
+    if (!selectedTrip) throw new Error('No trip is selected.')
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) })
+    if (!response.ok) { const problem = await readProblem(response); const fieldError = problem.errors && Object.values(problem.errors)[0]; throw new Error(fieldError ?? problem.detail ?? 'We could not update this trip.') }
+    const updated = await response.json() as Trip
+    setSelectedTrip(updated)
+    setTrips(current => current.map(trip => trip.id === updated.id ? updated : trip))
+  }
+
   const createActivityIdea = async (input: CreateActivityIdeaInput) => {
     if (!selectedTrip) throw new Error('No trip is selected.')
     const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/activity-ideas`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) })
@@ -423,7 +432,7 @@ function App() {
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
     const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip, section: TripSection = 'overview') => void openTrip(trip, true, section), onCreateTrip: createTrip, onLogout: logout }
-    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
+    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onUpdateTrip={updateTrip} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

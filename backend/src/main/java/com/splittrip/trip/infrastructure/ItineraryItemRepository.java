@@ -7,6 +7,8 @@ import org.springframework.data.repository.query.Param;
 import com.splittrip.trip.domain.ItineraryItem;
 
 public interface ItineraryItemRepository extends JpaRepository<ItineraryItem, UUID> {
+    boolean existsByTripIdAndScheduledDateBefore(UUID tripId, java.time.LocalDate date);
+    boolean existsByTripIdAndScheduledDateAfter(UUID tripId, java.time.LocalDate date);
     @Query("select item from ItineraryItem item join fetch item.activityIdea join fetch item.scheduledBy where item.trip.id = :tripId order by item.scheduledDate, item.startTime")
     List<ItineraryItem> findByTripIdOrdered(@Param("tripId") UUID tripId);
     boolean existsByActivityIdeaId(UUID activityIdeaId);

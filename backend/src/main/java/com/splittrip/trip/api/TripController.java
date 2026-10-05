@@ -10,12 +10,14 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.splittrip.trip.application.CreateTripCommand;
 import com.splittrip.trip.application.TripService;
+import com.splittrip.trip.application.UpdateTripCommand;
 
 import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
@@ -56,6 +58,21 @@ public class TripController {
     @Operation(summary = "Get a trip visible to the authenticated user")
     TripResponse get(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID tripId) {
         return TripResponse.from(tripService.get(tripId, userId(jwt)));
+    }
+
+    @PutMapping("/{tripId}")
+    @Operation(summary = "Update a trip owned by the authenticated user")
+    TripResponse update(
+            @AuthenticationPrincipal Jwt jwt,
+            @PathVariable UUID tripId,
+            @Valid @RequestBody UpdateTripRequest request) {
+        return TripResponse.from(tripService.update(tripId, userId(jwt), new UpdateTripCommand(
+                request.title(),
+                request.destination(),
+                request.description(),
+                request.startDate(),
+                request.endDate(),
+                request.defaultCurrency())));
     }
 
     private UUID userId(Jwt jwt) {

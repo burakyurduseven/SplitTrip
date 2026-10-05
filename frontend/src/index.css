@@ -66,6 +66,9 @@ form { display: grid; gap: 18px; }
 @media (max-width: 420px) { .story-panel { min-height: 235px; }.story-description { max-width: 330px; }.form-heading h2 { font-size: 33px; }.field input { height: 52px; }.form-footer .made-with { display: none; } }
 @media (prefers-reduced-motion: reduce) { *,*::before,*::after { scroll-behavior: auto!important; animation-duration: .01ms!important; animation-iteration-count: 1!important; transition-duration: .01ms!important; } }
 
+.edit-trip-dialog .currency-field small { margin-top: -2px; color: #a16a5a; font-size: 8px; line-height: 1.35; }
+.edit-trip-dialog select:disabled { cursor: not-allowed; color: #788680; background: #edf0ed; }
+
 /* Dashboard */
 .app-loading { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 14px; color: #61746d; background: #f7f6f0; }.loading-mark { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 19px 19px 19px 6px; color: #0b6b60; background: linear-gradient(145deg,#fff0bd,#ffca67); font-size: 24px; font-weight: 900; box-shadow: 0 14px 30px rgba(27,73,62,.16); animation: loading-float 1.5s ease-in-out infinite alternate; }.app-loading p { margin: 0; font-size: 12px; font-weight: 750; letter-spacing: .08em; }
 .dashboard-shell { min-height: 100dvh; display: grid; grid-template-columns: 220px minmax(0,1fr); color: #18352f; background: #f6f5ef; }

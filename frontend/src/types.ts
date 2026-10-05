@@ -23,6 +23,7 @@ export type CreateTripInput = {
   endDate: string
   defaultCurrency: string
 }
+export type UpdateTripInput = CreateTripInput
 
 export type TripMember = {
   userId: string

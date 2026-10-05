@@ -35,6 +35,7 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ totalSpent: 0, members: [], suggestedTransfers: [] }) })
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Autumn', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ token: 'secure-invite-token', expiresAt: '2026-10-09T00:00:00Z' }) }))
 
     render(<App />)
@@ -49,6 +50,12 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Aegean Summer' }))
     expect(await screen.findByText('YOUR TRIP')).toBeDefined()
     expect(window.location.pathname).toBe('/trips/trip-1')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit trip' }))
+    const editDialog = screen.getByRole('dialog', { name: 'Shape the journey.' })
+    fireEvent.change(within(editDialog).getByLabelText('Trip name'), { target: { value: 'Aegean Autumn' } })
+    fireEvent.click(within(editDialog).getByRole('button', { name: /Save changes/ }))
+    expect(await screen.findByRole('heading', { name: 'Aegean Autumn' })).toBeDefined()
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Itinerary/ }))
     expect(screen.getByRole('heading', { name: 'Idea pool' })).toBeDefined()

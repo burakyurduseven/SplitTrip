@@ -38,6 +38,7 @@ export function ExpenseWorkspace({ trip, members, expenses, onSave, onDelete }: 
   }
   const remove = async () => {
     if (!editing) return
+    if (!window.confirm(`Delete “${editing.title}”? This will recalculate everyone's balances.`)) return
     try { await onDelete(editing.id); setDialogOpen(false) } catch (reason) { setError(reason instanceof Error ? reason.message : 'We could not delete this expense.') }
   }
 

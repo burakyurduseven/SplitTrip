@@ -3,6 +3,7 @@ package com.splittrip.trip.domain;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.UUID;
+import java.util.Locale;
 
 import com.splittrip.user.domain.UserAccount;
 
@@ -76,6 +77,16 @@ public class Trip {
     public static Trip create(UserAccount owner, String title, String destination, String description,
             LocalDate startDate, LocalDate endDate, String defaultCurrency) {
         return new Trip(owner, title, destination, description, startDate, endDate, defaultCurrency);
+    }
+
+    public void update(String title, String destination, String description,
+            LocalDate startDate, LocalDate endDate, String defaultCurrency) {
+        this.title = title.trim();
+        this.destination = destination.trim();
+        this.description = description == null || description.isBlank() ? null : description.trim();
+        this.startDate = startDate;
+        this.endDate = endDate;
+        this.defaultCurrency = defaultCurrency.trim().toUpperCase(Locale.ROOT);
     }
 
     @PrePersist

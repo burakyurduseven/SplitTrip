@@ -12,6 +12,9 @@ import com.splittrip.trip.domain.Trip;
 import com.splittrip.trip.domain.TripMember;
 import com.splittrip.trip.infrastructure.TripMemberRepository;
 import com.splittrip.trip.infrastructure.TripRepository;
+import com.splittrip.trip.infrastructure.ExpenseRepository;
+import com.splittrip.trip.infrastructure.ItineraryItemRepository;
+import com.splittrip.trip.domain.TripMemberRole;
 import com.splittrip.user.domain.UserStatus;
 import com.splittrip.user.infrastructure.UserAccountRepository;
 
@@ -21,14 +24,20 @@ public class TripService {
     private final TripRepository tripRepository;
     private final TripMemberRepository tripMemberRepository;
     private final UserAccountRepository userRepository;
+    private final ExpenseRepository expenseRepository;
+    private final ItineraryItemRepository itineraryItemRepository;
 
     public TripService(
             TripRepository tripRepository,
             TripMemberRepository tripMemberRepository,
-            UserAccountRepository userRepository) {
+            UserAccountRepository userRepository,
+            ExpenseRepository expenseRepository,
+            ItineraryItemRepository itineraryItemRepository) {
         this.tripRepository = tripRepository;
         this.tripMemberRepository = tripMemberRepository;
         this.userRepository = userRepository;
+        this.expenseRepository = expenseRepository;
+        this.itineraryItemRepository = itineraryItemRepository;
     }
 
     @Transactional
@@ -67,6 +76,33 @@ public class TripService {
         return tripMemberRepository.findActiveMembership(tripId, userId)
                 .map(this::toView)
                 .orElseThrow(TripNotFoundException::new);
+    }
+
+    @Transactional
+    public TripView update(UUID tripId, UUID userId, UpdateTripCommand command) {
+        if (command.startDate().isAfter(command.endDate())) {
+            throw new InvalidTripDateRangeException();
+        }
+        var membership = tripMemberRepository.findActiveMembership(tripId, userId)
+                .orElseThrow(TripNotFoundException::new);
+        if (membership.getRole() != TripMemberRole.OWNER) {
+            throw new TripAccessDeniedException("Only the trip owner can edit this trip.");
+        }
+        var trip = membership.getTrip();
+        var currency = command.defaultCurrency().trim().toUpperCase(Locale.ROOT);
+        if (!trip.getDefaultCurrency().equals(currency) && expenseRepository.existsByTripId(tripId)) {
+            throw new TripUpdateConflictException("The trip currency cannot change after expenses have been added.");
+        }
+        var hasOutOfRangeRecords = expenseRepository.existsByTripIdAndExpenseDateBefore(tripId, command.startDate())
+                || expenseRepository.existsByTripIdAndExpenseDateAfter(tripId, command.endDate())
+                || itineraryItemRepository.existsByTripIdAndScheduledDateBefore(tripId, command.startDate())
+                || itineraryItemRepository.existsByTripIdAndScheduledDateAfter(tripId, command.endDate());
+        if (hasOutOfRangeRecords) {
+            throw new TripUpdateConflictException("The new dates must include all existing expenses and itinerary activities.");
+        }
+        trip.update(command.title(), command.destination(), command.description(),
+                command.startDate(), command.endDate(), currency);
+        return toView(membership);
     }
 
     private TripView toView(TripMember membership) {
