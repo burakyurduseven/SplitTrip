@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react'
 
 import { AppNavigation } from './AppNavigation'
 import { CreateTripDialog } from './CreateTripDialog'
-import type { AppPage } from './AppNavigation'
+import type { AppPage, TripSection } from './AppNavigation'
 import type { CreateTripInput, CurrentUser, Trip } from './types'
 
 type Props = {
   user: CurrentUser
   trips: Trip[]
   onNavigate: (page: AppPage) => void
-  onOpenTrip: (trip: Trip) => void
+  onOpenTrip: (trip: Trip, section?: TripSection) => void
   onCreateTrip: (input: CreateTripInput) => Promise<void>
   onLogout: () => Promise<void>
 }
@@ -30,10 +30,15 @@ export function TripsPage({ user, trips, onNavigate, onOpenTrip, onCreateTrip, o
     past: trips.filter(trip => trip.status === 'ARCHIVED' || trip.endDate < today).length,
   }), [trips])
   const visibleTrips = trips.filter(trip => filter === 'all' || (filter === 'upcoming' ? trip.status === 'ACTIVE' && trip.endDate >= today : trip.status === 'ARCHIVED' || trip.endDate < today))
+  const openTripSection = (section: TripSection) => {
+    const target = trips.find(trip => trip.status === 'ACTIVE') ?? trips[0]
+    if (target) onOpenTrip(target, section)
+    else setCreating(true)
+  }
 
   return (
     <div className="dashboard-shell">
-      <AppNavigation activePage="trips" onNavigate={onNavigate} onCreateTrip={() => setCreating(true)} onLogout={onLogout} />
+      <AppNavigation activePage="trips" onNavigate={onNavigate} onCreateTrip={() => setCreating(true)} onOpenSection={openTripSection} onLogout={onLogout} />
       <main className="dashboard-main trips-page">
         <header className="trips-header">
           <div><p className="dash-kicker">YOUR COLLECTION</p><h1>Your trips</h1><span>Every shared plan, memory, and expense in one place.</span></div>

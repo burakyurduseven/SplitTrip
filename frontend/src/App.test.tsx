@@ -50,8 +50,14 @@ describe('App', () => {
     expect(await screen.findByText('YOUR TRIP')).toBeDefined()
     expect(window.location.pathname).toBe('/trips/trip-1')
 
-    fireEvent.click(within(screen.getByRole('navigation', { name: 'Trip sections' })).getByRole('button', { name: 'Itinerary' }))
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Itinerary/ }))
     expect(screen.getByRole('heading', { name: 'Idea pool' })).toBeDefined()
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Expenses/ }))
+    expect(screen.getByRole('heading', { name: 'Money on the move' })).toBeDefined()
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Balances/ }))
+    expect(screen.getByRole('heading', { name: 'Where everyone stands' })).toBeDefined()
 
     fireEvent.click(screen.getByRole('button', { name: 'Invite people ＋' }))
     expect(await screen.findByDisplayValue('http://localhost:3000/invitations/secure-invite-token')).toBeDefined()

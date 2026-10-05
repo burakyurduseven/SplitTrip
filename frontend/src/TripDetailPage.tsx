@@ -4,7 +4,7 @@ import { AppNavigation } from './AppNavigation'
 import { ItineraryWorkspace } from './ItineraryWorkspace'
 import { ExpenseWorkspace } from './ExpenseWorkspace'
 import { BalanceWorkspace } from './BalanceWorkspace'
-import type { AppPage } from './AppNavigation'
+import type { AppPage, TripSection } from './AppNavigation'
 import type { ActivityIdea, ActivityVoteValue, BalanceSummary, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput } from './types'
 
 type Props = {
@@ -16,6 +16,7 @@ type Props = {
   balances: BalanceSummary | null
   settlements: Settlement[]
   currentUserId: string
+  initialSection?: TripSection
   loading: boolean
   loadError: string
   onRetry: () => void
@@ -36,7 +37,7 @@ type Props = {
   onLogout: () => Promise<void>
 }
 
-type Section = 'overview' | 'itinerary' | 'expenses' | 'balances' | 'members'
+type Section = TripSection
 const sections: Section[] = ['overview', 'itinerary', 'expenses', 'balances', 'members']
 const formatDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`))
 
@@ -44,8 +45,8 @@ function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy:
   return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p><button type="button" disabled>Coming next</button></div>
 }
 
-export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
-  const [section, setSection] = useState<Section>('overview')
+export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
+  const [section, setSection] = useState<Section>(initialSection)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
   const [inviteExpiry, setInviteExpiry] = useState('')
@@ -77,7 +78,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
 
   return (
     <div className="dashboard-shell">
-      <AppNavigation activePage="trips" onNavigate={onNavigate} onCreateTrip={onCreateTrip} onLogout={onLogout} />
+      <AppNavigation activePage="trips" activeSection={section === 'overview' || section === 'members' ? undefined : section} onNavigate={onNavigate} onCreateTrip={onCreateTrip} onOpenSection={setSection} onLogout={onLogout} />
       <main className="dashboard-main trip-detail-page">
         <button className="detail-back" type="button" onClick={() => onNavigate('trips')}>← All trips</button>
         <section className="detail-hero">

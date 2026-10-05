@@ -5,7 +5,7 @@ import { Dashboard } from './Dashboard'
 import { TripsPage } from './TripsPage'
 import { TripDetailPage } from './TripDetailPage'
 import { InvitationPage } from './InvitationPage'
-import type { AppPage } from './AppNavigation'
+import type { AppPage, TripSection } from './AppNavigation'
 import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput } from './types'
 
 type AuthMode = 'login' | 'register'
@@ -44,6 +44,7 @@ function App() {
   const [bootstrapping, setBootstrapping] = useState(true)
   const [page, setPage] = useState<AppPage | 'trip'>('home')
   const [selectedTrip, setSelectedTrip] = useState<Trip | null>(null)
+  const [selectedTripSection, setSelectedTripSection] = useState<TripSection>('overview')
   const [members, setMembers] = useState<TripMember[]>([])
   const [ideas, setIdeas] = useState<ActivityIdea[]>([])
   const [itinerary, setItinerary] = useState<ItineraryItem[]>([])
@@ -227,8 +228,9 @@ function App() {
     setPage(nextPage)
   }
 
-  const openTrip = async (trip: Trip, updateHistory = true) => {
+  const openTrip = async (trip: Trip, updateHistory = true, section: TripSection = 'overview') => {
     setSelectedTrip(trip)
+    setSelectedTripSection(section)
     setPage('trip')
     setTripLoading(true)
     setTripLoadError('')
@@ -420,8 +422,8 @@ function App() {
 
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
-    const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip) => void openTrip(trip), onCreateTrip: createTrip, onLogout: logout }
-    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} currentUserId={user.id} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
+    const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip, section: TripSection = 'overview') => void openTrip(trip, true, section), onCreateTrip: createTrip, onLogout: logout }
+    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

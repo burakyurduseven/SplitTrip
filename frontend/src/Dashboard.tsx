@@ -2,14 +2,14 @@ import { useMemo, useState } from 'react'
 
 import { AppNavigation } from './AppNavigation'
 import { CreateTripDialog } from './CreateTripDialog'
-import type { AppPage } from './AppNavigation'
+import type { AppPage, TripSection } from './AppNavigation'
 import type { CreateTripInput, CurrentUser, Trip } from './types'
 
 type Props = {
   user: CurrentUser
   trips: Trip[]
   onNavigate: (page: AppPage) => void
-  onOpenTrip: (trip: Trip) => void
+  onOpenTrip: (trip: Trip, section?: TripSection) => void
   onCreateTrip: (input: CreateTripInput) => Promise<void>
   onLogout: () => Promise<void>
 }
@@ -24,10 +24,11 @@ export function Dashboard({ user, trips, onNavigate, onOpenTrip, onCreateTrip, o
   const nextTrip = useMemo(() => trips.find(trip => trip.status === 'ACTIVE') ?? trips[0], [trips])
   const otherTrips = trips.filter(trip => trip.id !== nextTrip?.id)
   const firstName = user.displayName.split(' ')[0]
+  const openTripSection = (section: TripSection) => nextTrip ? onOpenTrip(nextTrip, section) : onNavigate('trips')
 
   return (
     <div className="dashboard-shell">
-      <AppNavigation activePage="home" onNavigate={onNavigate} onCreateTrip={() => setCreating(true)} onLogout={onLogout} />
+      <AppNavigation activePage="home" onNavigate={onNavigate} onCreateTrip={() => setCreating(true)} onOpenSection={openTripSection} onLogout={onLogout} />
 
       <main className="dashboard-main">
         <header className="dashboard-header">
@@ -47,9 +48,9 @@ export function Dashboard({ user, trips, onNavigate, onOpenTrip, onCreateTrip, o
         )}
 
         <section className="dashboard-grid">
-          <article className="dash-card today-card"><header><h3><span>□</span> Today’s plan</h3><button type="button">View all →</button></header><div className="empty-card-icon">⌁</div><strong>No plans here yet</strong><p>Your itinerary will appear here once activities are added.</p></article>
-          <article className="dash-card expense-card"><header><h3><span>▤</span> Shared expenses</h3><button type="button">View all →</button></header><div className="empty-card-icon coral">₺</div><strong>Nothing to split yet</strong><p>Shared costs will stay organized here.</p></article>
-          <article className="dash-card balance-card"><header><h3><span>▥</span> Your balance</h3></header><div className="balance-zero">₺0.00</div><strong>All settled up</strong><p>Your group balances will appear as expenses are added.</p></article>
+          <article className="dash-card today-card"><header><h3><span>□</span> Today’s plan</h3><button type="button" onClick={() => openTripSection('itinerary')}>View all →</button></header><div className="empty-card-icon">⌁</div><strong>No plans here yet</strong><p>Your itinerary will appear here once activities are added.</p></article>
+          <article className="dash-card expense-card"><header><h3><span>▤</span> Shared expenses</h3><button type="button" onClick={() => openTripSection('expenses')}>View all →</button></header><div className="empty-card-icon coral">₺</div><strong>Nothing to split yet</strong><p>Shared costs will stay organized here.</p></article>
+          <article className="dash-card balance-card"><header><h3><span>▥</span> Your balance</h3><button type="button" onClick={() => openTripSection('balances')}>View all →</button></header><div className="balance-zero">₺0.00</div><strong>All settled up</strong><p>Your group balances will appear as expenses are added.</p></article>
         </section>
 
         <section className="trip-collection">
