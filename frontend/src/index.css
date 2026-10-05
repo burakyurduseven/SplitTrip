@@ -69,6 +69,13 @@ form { display: grid; gap: 18px; }
 .edit-trip-dialog .currency-field small { margin-top: -2px; color: #a16a5a; font-size: 8px; line-height: 1.35; }
 .edit-trip-dialog select:disabled { cursor: not-allowed; color: #788680; background: #edf0ed; }
 
+/* Clear enabled and permission-locked trip actions */
+.detail-actions button { border-color: rgba(255,255,255,.9); color: #16453c; background: #fff; box-shadow: 0 8px 20px rgba(4,31,27,.18); font-weight: 850; cursor: pointer; transition: transform .2s ease,box-shadow .2s ease,filter .2s ease; }
+.detail-actions button:last-child { border-color: transparent; color: #fff; background: linear-gradient(110deg,#0b8b7c,#22ae9a); }
+.detail-actions button:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(4,31,27,.25); filter: saturate(1.08); }
+.detail-actions button:not(:disabled):active { transform: translateY(0); box-shadow: 0 5px 13px rgba(4,31,27,.18); }
+.detail-actions button:disabled,.detail-actions button:last-child:disabled { border-color: rgba(255,255,255,.2); color: rgba(255,255,255,.48); background: rgba(255,255,255,.1); box-shadow: none; cursor: not-allowed; }
+
 /* Dashboard */
 .app-loading { min-height: 100dvh; display: grid; place-content: center; justify-items: center; gap: 14px; color: #61746d; background: #f7f6f0; }.loading-mark { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 19px 19px 19px 6px; color: #0b6b60; background: linear-gradient(145deg,#fff0bd,#ffca67); font-size: 24px; font-weight: 900; box-shadow: 0 14px 30px rgba(27,73,62,.16); animation: loading-float 1.5s ease-in-out infinite alternate; }.app-loading p { margin: 0; font-size: 12px; font-weight: 750; letter-spacing: .08em; }
 .dashboard-shell { min-height: 100dvh; display: grid; grid-template-columns: 220px minmax(0,1fr); color: #18352f; background: #f6f5ef; }
