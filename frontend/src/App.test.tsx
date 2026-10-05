@@ -23,6 +23,31 @@ describe('App', () => {
     expect(screen.queryByLabelText('Your name')).toBeNull()
   })
 
+  it('shows only future trips on the dashboard in nearest-first order', async () => {
+    const trip = (id: string, title: string, startDate: string, endDate: string) => ({ id, ownerId: 'user-1', title, destination: 'Türkiye', description: null, startDate, endDate, defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-01-01T00:00:00Z' })
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'user-1', displayName: 'Burak', email: 'burak@example.com', createdAt: '2026-01-01T00:00:00Z' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => [
+        trip('later', 'Later Journey', '2099-08-10', '2099-08-15'),
+        trip('past', 'Past Journey', '2000-05-01', '2000-05-05'),
+        trip('nearest', 'Nearest Journey', '2098-03-10', '2098-03-14'),
+      ] }))
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: 'Nearest Journey' })).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Later Journey' })).toBeDefined()
+    expect(screen.queryByRole('heading', { name: 'Past Journey' })).toBeNull()
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Trips/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /Past/ }))
+
+    expect(screen.getByRole('heading', { name: 'Past Journey' })).toBeDefined()
+    expect(screen.queryByRole('heading', { name: 'Nearest Journey' })).toBeNull()
+    expect(screen.queryByRole('heading', { name: 'Later Journey' })).toBeNull()
+  })
+
   it('restores a session and renders real trips', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })

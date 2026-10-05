@@ -15,14 +15,18 @@ type Props = {
 }
 
 const dashboardOpenedAt = Date.now()
+const dashboardToday = new Date().toLocaleDateString('en-CA')
 
 const shortDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(`${date}T00:00:00`))
 const tripDates = (trip: Trip) => `${shortDate(trip.startDate)} – ${shortDate(trip.endDate)}`
 
 export function Dashboard({ user, trips, onNavigate, onOpenTrip, onCreateTrip, onLogout }: Props) {
   const [creating, setCreating] = useState(false)
-  const nextTrip = useMemo(() => trips.find(trip => trip.status === 'ACTIVE') ?? trips[0], [trips])
-  const otherTrips = trips.filter(trip => trip.id !== nextTrip?.id)
+  const upcomingTrips = useMemo(() => trips
+    .filter(trip => trip.status === 'ACTIVE' && trip.endDate >= dashboardToday)
+    .sort((left, right) => left.startDate.localeCompare(right.startDate) || left.createdAt.localeCompare(right.createdAt)), [trips])
+  const nextTrip = upcomingTrips[0]
+  const otherTrips = upcomingTrips.slice(1)
   const firstName = user.displayName.split(' ')[0]
   const openTripSection = (section: TripSection) => nextTrip ? onOpenTrip(nextTrip, section) : onNavigate('trips')
 

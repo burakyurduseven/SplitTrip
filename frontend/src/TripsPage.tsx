@@ -16,7 +16,7 @@ type Props = {
 
 type Filter = 'all' | 'upcoming' | 'past'
 
-const today = new Date().toISOString().slice(0, 10)
+const today = new Date().toLocaleDateString('en-CA')
 const dateRange = (trip: Trip) => {
   const format = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`))
   return `${format(trip.startDate)} – ${format(trip.endDate)}`
@@ -29,7 +29,15 @@ export function TripsPage({ user, trips, onNavigate, onOpenTrip, onCreateTrip, o
     upcoming: trips.filter(trip => trip.status === 'ACTIVE' && trip.endDate >= today).length,
     past: trips.filter(trip => trip.status === 'ARCHIVED' || trip.endDate < today).length,
   }), [trips])
-  const visibleTrips = trips.filter(trip => filter === 'all' || (filter === 'upcoming' ? trip.status === 'ACTIVE' && trip.endDate >= today : trip.status === 'ARCHIVED' || trip.endDate < today))
+  const visibleTrips = useMemo(() => {
+    const upcoming = trips
+      .filter(trip => trip.status === 'ACTIVE' && trip.endDate >= today)
+      .sort((left, right) => left.startDate.localeCompare(right.startDate) || left.createdAt.localeCompare(right.createdAt))
+    const past = trips
+      .filter(trip => trip.status === 'ARCHIVED' || trip.endDate < today)
+      .sort((left, right) => right.endDate.localeCompare(left.endDate) || right.createdAt.localeCompare(left.createdAt))
+    return filter === 'upcoming' ? upcoming : filter === 'past' ? past : [...upcoming, ...past]
+  }, [filter, trips])
   const openTripSection = (section: TripSection) => {
     const target = trips.find(trip => trip.status === 'ACTIVE') ?? trips[0]
     if (target) onOpenTrip(target, section)
