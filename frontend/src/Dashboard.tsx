@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { AppNavigation } from './AppNavigation'
 import { CreateTripDialog } from './CreateTripDialog'
@@ -9,6 +9,7 @@ type Props = {
   user: CurrentUser
   trips: Trip[]
   checklistSummaries: Record<string, ChecklistSummary>
+  onLoadChecklistSummary: (tripId: string) => Promise<void>
   onNavigate: (page: AppPage) => void
   onOpenTrip: (trip: Trip, section?: TripSection) => void
   onCreateTrip: (input: CreateTripInput) => Promise<void>
@@ -21,17 +22,27 @@ const dashboardToday = new Date().toLocaleDateString('en-CA')
 const shortDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(`${date}T00:00:00`))
 const tripDates = (trip: Trip) => `${shortDate(trip.startDate)} – ${shortDate(trip.endDate)}`
 
-export function Dashboard({ user, trips, checklistSummaries, onNavigate, onOpenTrip, onCreateTrip, onLogout }: Props) {
+export function Dashboard({ user, trips, checklistSummaries, onLoadChecklistSummary, onNavigate, onOpenTrip, onCreateTrip, onLogout }: Props) {
   const [creating, setCreating] = useState(false)
+  const [selectedTripId, setSelectedTripId] = useState<string | null>(null)
+  const touchStartX = useRef<number | null>(null)
   const upcomingTrips = useMemo(() => trips
     .filter(trip => trip.status === 'ACTIVE' && trip.endDate >= dashboardToday)
     .sort((left, right) => left.startDate.localeCompare(right.startDate) || left.createdAt.localeCompare(right.createdAt)), [trips])
-  const nextTrip = upcomingTrips[0]
-  const otherTrips = upcomingTrips.slice(1)
-  const checklistSummary = nextTrip ? checklistSummaries[nextTrip.id] : undefined
+  const selectedIndex = Math.max(0, upcomingTrips.findIndex(trip => trip.id === selectedTripId))
+  const selectedTrip = upcomingTrips[selectedIndex]
+  const otherTrips = upcomingTrips.filter(trip => trip.id !== selectedTrip?.id)
+  const checklistSummary = selectedTrip ? checklistSummaries[selectedTrip.id] : undefined
   const checklistProgress = checklistSummary?.total ? Math.round(checklistSummary.completed * 100 / checklistSummary.total) : 0
   const firstName = user.displayName.split(' ')[0]
-  const openTripSection = (section: TripSection) => nextTrip ? onOpenTrip(nextTrip, section) : onNavigate('trips')
+  const openTripSection = (section: TripSection) => selectedTrip ? onOpenTrip(selectedTrip, section) : onNavigate('trips')
+  const selectTrip = (index: number) => {
+    const trip = upcomingTrips[index]
+    if (trip) setSelectedTripId(trip.id)
+  }
+  useEffect(() => {
+    if (selectedTrip && !checklistSummaries[selectedTrip.id]) void onLoadChecklistSummary(selectedTrip.id)
+  }, [checklistSummaries, onLoadChecklistSummary, selectedTrip])
 
   return (
     <div className="dashboard-shell">
@@ -43,12 +54,14 @@ export function Dashboard({ user, trips, checklistSummaries, onNavigate, onOpenT
           <div className="profile-chip" title={user.email}><span>{user.displayName.split(' ').map(word => word[0]).slice(0,2).join('')}</span><i>{user.displayName}</i></div>
         </header>
 
-        {nextTrip ? (
-          <section className="adventure-card">
+        {selectedTrip ? (
+          <section className="adventure-card" onTouchStart={event => { touchStartX.current = event.touches[0].clientX }} onTouchEnd={event => { if (touchStartX.current === null) return; const distance = event.changedTouches[0].clientX - touchStartX.current; if (Math.abs(distance) > 45) selectTrip(selectedIndex + (distance < 0 ? 1 : -1)); touchStartX.current = null }}>
             <div className="adventure-route" aria-hidden="true"><i /><i /><i /><svg viewBox="0 0 700 180"><path d="M-20 155C108 39 177 184 302 98S474 25 720 99" /></svg></div>
-            <div className="adventure-copy"><p>YOUR NEXT ADVENTURE</p><h2>{nextTrip.title}</h2><div className="trip-meta"><span>⌖ {nextTrip.destination}</span><span>□ {tripDates(nextTrip)}</span><span className="role-badge">{nextTrip.currentUserRole}</span></div></div>
-            <div className="countdown-card"><strong>{Math.max(0, Math.ceil((new Date(`${nextTrip.startDate}T00:00:00`).getTime() - dashboardOpenedAt) / 86400000))}</strong><span>days to go</span></div>
-            <button type="button" className="hero-button" onClick={() => onOpenTrip(nextTrip)}>View trip <span>→</span></button>
+            {upcomingTrips.length > 1 && <div className="trip-carousel-controls"><button type="button" aria-label="Previous trip" disabled={selectedIndex === 0} onClick={() => selectTrip(selectedIndex - 1)}>←</button><span>{selectedIndex + 1} / {upcomingTrips.length}</span><button type="button" aria-label="Next trip" disabled={selectedIndex === upcomingTrips.length - 1} onClick={() => selectTrip(selectedIndex + 1)}>→</button></div>}
+            <div className="adventure-copy"><p>{selectedIndex === 0 ? 'YOUR NEXT ADVENTURE' : 'UPCOMING ADVENTURE'}</p><h2>{selectedTrip.title}</h2><div className="trip-meta"><span>⌖ {selectedTrip.destination}</span><span>□ {tripDates(selectedTrip)}</span><span className="role-badge">{selectedTrip.currentUserRole}</span></div></div>
+            <div className="countdown-card"><strong>{Math.max(0, Math.ceil((new Date(`${selectedTrip.startDate}T00:00:00`).getTime() - dashboardOpenedAt) / 86400000))}</strong><span>days to go</span></div>
+            <button type="button" className="hero-button" onClick={() => onOpenTrip(selectedTrip)}>View trip <span>→</span></button>
+            {upcomingTrips.length > 1 && <div className="trip-carousel-dots" aria-label="Choose trip">{upcomingTrips.map((trip, index) => <button key={trip.id} type="button" className={index === selectedIndex ? 'active' : ''} aria-label={`Show ${trip.title}`} aria-current={index === selectedIndex ? 'true' : undefined} onClick={() => selectTrip(index)} />)}</div>}
           </section>
         ) : (
           <section className="adventure-card empty-adventure"><div className="adventure-copy"><p>YOUR NEXT ADVENTURE</p><h2>There is a whole world waiting.</h2><div className="trip-meta"><span>Create your first trip and bring your favorite people along.</span></div></div><button type="button" className="hero-button" onClick={() => setCreating(true)}>Create trip <span>＋</span></button></section>
@@ -60,10 +73,10 @@ export function Dashboard({ user, trips, checklistSummaries, onNavigate, onOpenT
           <article className="dash-card balance-card"><header><h3><span>▥</span> Your balance</h3><button type="button" onClick={() => openTripSection('balances')}>View all →</button></header><div className="balance-zero">₺0.00</div><strong>All settled up</strong><p>Your group balances will appear as expenses are added.</p></article>
         </section>
 
-        {nextTrip && <section className="dashboard-checklist">
+        {selectedTrip && <section className="dashboard-checklist">
           <div className="dashboard-checklist-mark">✓</div>
-          <div className="dashboard-checklist-copy"><p>TRIP CHECKLIST</p><h2>{checklistSummary?.total ? `${checklistSummary.completed} of ${checklistSummary.total} completed` : 'Nothing on the list yet.'}</h2><span>{checklistSummary?.overdue ? `${checklistSummary.overdue} ${checklistSummary.overdue === 1 ? 'task needs' : 'tasks need'} attention` : checklistSummary?.total ? 'Everything is moving in the right direction.' : 'Add the first task and get everyone ready.'}</span></div>
-          <div className="dashboard-checklist-progress"><div><i><b style={{ width: `${checklistProgress}%` }} /></i><strong>{checklistProgress}%</strong></div><button type="button" onClick={() => onOpenTrip(nextTrip, 'checklist')}>{checklistSummary?.total ? 'Open checklist' : 'Add the first task'} →</button></div>
+          <div className="dashboard-checklist-copy"><p>TRIP CHECKLIST · {selectedTrip.title}</p><h2>{!checklistSummary ? 'Loading checklist...' : checklistSummary.total ? `${checklistSummary.completed} of ${checklistSummary.total} completed` : 'Nothing on the list yet.'}</h2><span>{checklistSummary?.overdue ? `${checklistSummary.overdue} ${checklistSummary.overdue === 1 ? 'task needs' : 'tasks need'} attention` : checklistSummary?.total ? 'Everything is moving in the right direction.' : checklistSummary ? 'Add the first task and get everyone ready.' : 'Gathering the latest trip tasks.'}</span></div>
+          <div className="dashboard-checklist-progress"><div><i><b style={{ width: `${checklistProgress}%` }} /></i><strong>{checklistProgress}%</strong></div><button type="button" onClick={() => onOpenTrip(selectedTrip, 'checklist')}>{checklistSummary?.total ? 'Open checklist' : 'Add the first task'} →</button></div>
         </section>}
 
         <section className="trip-collection">

@@ -243,10 +243,14 @@ function App() {
   }
 
   const refreshChecklistSummary = async (tripId: string) => {
-    const response = await authenticatedFetch(`/api/v1/trips/${tripId}/checklist/summary`)
-    if (response.ok) {
-      const summary = await response.json() as ChecklistSummary
-      setChecklistSummaries(current => ({ ...current, [tripId]: summary }))
+    try {
+      const response = await authenticatedFetch(`/api/v1/trips/${tripId}/checklist/summary`)
+      if (response.ok) {
+        const summary = await response.json() as ChecklistSummary
+        setChecklistSummaries(current => ({ ...current, [tripId]: summary }))
+      }
+    } catch {
+      // The rest of the dashboard remains usable while a summary is temporarily unavailable.
     }
   }
 
@@ -491,7 +495,7 @@ function App() {
 
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
-    const pageProps = { user, trips, checklistSummaries, onNavigate: navigate, onOpenTrip: (trip: Trip, section: TripSection = 'overview') => void openTrip(trip, true, section), onCreateTrip: createTrip, onLogout: logout }
+    const pageProps = { user, trips, checklistSummaries, onLoadChecklistSummary: refreshChecklistSummary, onNavigate: navigate, onOpenTrip: (trip: Trip, section: TripSection = 'overview') => void openTrip(trip, true, section), onCreateTrip: createTrip, onLogout: logout }
     if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} checklist={checklist} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onUpdateTrip={updateTrip} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onSaveChecklist={saveChecklistItem} onChecklistStatusChange={changeChecklistStatus} onDeleteChecklist={deleteChecklistItem} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
