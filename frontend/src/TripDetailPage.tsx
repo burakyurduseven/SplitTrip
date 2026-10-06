@@ -6,6 +6,7 @@ import { ExpenseWorkspace } from './ExpenseWorkspace'
 import { BalanceWorkspace } from './BalanceWorkspace'
 import { ChecklistWorkspace } from './ChecklistWorkspace'
 import { EditTripDialog } from './EditTripDialog'
+import { TripOverview } from './TripOverview'
 import type { AppPage, TripSection } from './AppNavigation'
 import type { ActivityIdea, ActivityVoteValue, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, CreateActivityIdeaInput, Expense, ExpenseAttachment, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
 
@@ -50,10 +51,6 @@ type Props = {
 type Section = TripSection
 const sections: Section[] = ['overview', 'itinerary', 'checklist', 'expenses', 'balances', 'members']
 const formatDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`))
-
-function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy: string }) {
-  return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p></div>
-}
 
 export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, checklist, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onUpdateTrip, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onUploadExpenseAttachments, onFetchExpenseAttachment, onDeleteExpenseAttachment, onSaveChecklist, onChecklistStatusChange, onDeleteChecklist, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
   const [section, setSection] = useState<Section>(initialSection)
@@ -112,10 +109,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
         <section className="detail-content">
           {loading && <div className="trip-detail-skeleton" role="status" aria-label="Loading trip details"><div className="skeleton-panel"><i /><i /><i /><i /></div><div className="skeleton-stack"><i /><i /></div><span>Gathering the latest trip details...</span></div>}
           {!loading && loadError && <div className="trip-load-error" role="alert"><span>!</span><div><h2>We hit a detour.</h2><p>{loadError}</p></div><button type="button" onClick={onRetry}>Try again</button></div>}
-          {!loading && !loadError && section === 'overview' && <div className="overview-layout">
-            <article className="detail-panel detail-plan"><header><div><p>NEXT UP</p><h2>Your itinerary</h2></div><button type="button" onClick={() => setSection('itinerary')}>View itinerary →</button></header><EmptyModule icon="⌁" title="The days are yours to shape." copy="Activities will appear here once you start building the itinerary." /></article>
-            <aside className="detail-side-stack"><article className="detail-panel"><p className="panel-kicker">TRIP CREW</p><h2>Travelling together</h2>{members.slice(0, 2).map(member => <div className="current-member" key={member.userId}><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.role.toLowerCase()}</small></div></div>)}<button type="button" className="panel-link" onClick={() => setSection('members')}>See members →</button></article><article className="detail-panel money-panel"><p className="panel-kicker">SHARED MONEY</p><h2>{currentBalance === 0 ? 'Nothing to settle.' : currentBalance > 0 ? `You get back ${trip.defaultCurrency} ${formattedBalance}.` : `You owe ${trip.defaultCurrency} ${formattedBalance}.`}</h2><p>{expenses.length ? 'Your position is calculated from every expense and share in this trip.' : 'Add expenses during the trip and SplitTrip will keep the group even.'}</p><button type="button" className="panel-link" onClick={() => setSection(expenses.length ? 'balances' : 'expenses')}>{expenses.length ? 'See balances' : 'See expenses'} →</button></article></aside>
-          </div>}
+          {!loading && !loadError && section === 'overview' && <TripOverview trip={trip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} checklist={checklist} currentUserId={currentUserId} onOpen={setSection} />}
           {!loading && !loadError && section === 'itinerary' && <ItineraryWorkspace trip={trip} ideas={ideas} itinerary={itinerary} onCreateIdea={onCreateIdea} onVote={onVote} onSchedule={onSchedule} onUpdateSchedule={onUpdateSchedule} onRemoveSchedule={onRemoveSchedule} />}
           {!loading && !loadError && section === 'checklist' && <ChecklistWorkspace trip={trip} members={members} items={checklist} currentUserId={currentUserId} onSave={onSaveChecklist} onStatusChange={onChecklistStatusChange} onDelete={onDeleteChecklist} />}
           {!loading && !loadError && section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} onUploadAttachments={onUploadExpenseAttachments} onFetchAttachment={onFetchExpenseAttachment} onDeleteAttachment={onDeleteExpenseAttachment} />}

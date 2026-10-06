@@ -85,6 +85,9 @@ describe('App', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open Aegean Summer' }))
     expect(await screen.findByText('YOUR TRIP')).toBeDefined()
     expect(window.location.pathname).toBe('/trips/trip-1')
+    expect(screen.getByText('TRIP READINESS')).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Start shaping the days' })).toBeDefined()
+    expect(screen.getByRole('heading', { name: 'Everything looks calm.' })).toBeDefined()
 
     fireEvent.click(screen.getByRole('button', { name: 'Edit trip' }))
     const editDialog = screen.getByRole('dialog', { name: 'Shape the journey.' })
