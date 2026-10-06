@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.splittrip.trip.application.ChecklistService;
 import com.splittrip.trip.application.ChecklistService.ChecklistItemView;
+import com.splittrip.trip.application.ChecklistService.ChecklistSummaryView;
 import com.splittrip.trip.domain.ChecklistPriority;
 import com.splittrip.trip.domain.ChecklistStatus;
 
@@ -30,6 +31,12 @@ public class ChecklistController {
     @Operation(summary = "List checklist tasks")
     List<ChecklistItemView> list(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID tripId) {
         return service.list(tripId, userId(jwt));
+    }
+
+    @GetMapping("/summary")
+    @Operation(summary = "Get checklist progress for a trip dashboard")
+    ChecklistSummaryView summary(@AuthenticationPrincipal Jwt jwt, @PathVariable UUID tripId) {
+        return service.summary(tripId, userId(jwt));
     }
 
     @PostMapping

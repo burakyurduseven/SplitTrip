@@ -124,6 +124,13 @@ class TripIntegrationTest {
                 .andExpect(jsonPath("$.status").value("COMPLETED"))
                 .andExpect(jsonPath("$.completedAt").isNotEmpty());
 
+        mockMvc.perform(get("/api/v1/trips/{tripId}/checklist/summary", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.completed").value(1))
+                .andExpect(jsonPath("$.overdue").value(0));
+
         mockMvc.perform(put("/api/v1/trips/{tripId}/checklist/{itemId}", tripId, itemId)
                         .header(HttpHeaders.AUTHORIZATION, bearer(memberToken))
                         .contentType(MediaType.APPLICATION_JSON)

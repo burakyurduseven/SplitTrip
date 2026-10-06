@@ -3,11 +3,12 @@ import { useMemo, useState } from 'react'
 import { AppNavigation } from './AppNavigation'
 import { CreateTripDialog } from './CreateTripDialog'
 import type { AppPage, TripSection } from './AppNavigation'
-import type { CreateTripInput, CurrentUser, Trip } from './types'
+import type { ChecklistSummary, CreateTripInput, CurrentUser, Trip } from './types'
 
 type Props = {
   user: CurrentUser
   trips: Trip[]
+  checklistSummaries: Record<string, ChecklistSummary>
   onNavigate: (page: AppPage) => void
   onOpenTrip: (trip: Trip, section?: TripSection) => void
   onCreateTrip: (input: CreateTripInput) => Promise<void>
@@ -20,13 +21,15 @@ const dashboardToday = new Date().toLocaleDateString('en-CA')
 const shortDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short' }).format(new Date(`${date}T00:00:00`))
 const tripDates = (trip: Trip) => `${shortDate(trip.startDate)} – ${shortDate(trip.endDate)}`
 
-export function Dashboard({ user, trips, onNavigate, onOpenTrip, onCreateTrip, onLogout }: Props) {
+export function Dashboard({ user, trips, checklistSummaries, onNavigate, onOpenTrip, onCreateTrip, onLogout }: Props) {
   const [creating, setCreating] = useState(false)
   const upcomingTrips = useMemo(() => trips
     .filter(trip => trip.status === 'ACTIVE' && trip.endDate >= dashboardToday)
     .sort((left, right) => left.startDate.localeCompare(right.startDate) || left.createdAt.localeCompare(right.createdAt)), [trips])
   const nextTrip = upcomingTrips[0]
   const otherTrips = upcomingTrips.slice(1)
+  const checklistSummary = nextTrip ? checklistSummaries[nextTrip.id] : undefined
+  const checklistProgress = checklistSummary?.total ? Math.round(checklistSummary.completed * 100 / checklistSummary.total) : 0
   const firstName = user.displayName.split(' ')[0]
   const openTripSection = (section: TripSection) => nextTrip ? onOpenTrip(nextTrip, section) : onNavigate('trips')
 
@@ -56,6 +59,12 @@ export function Dashboard({ user, trips, onNavigate, onOpenTrip, onCreateTrip, o
           <article className="dash-card expense-card"><header><h3><span>▤</span> Shared expenses</h3><button type="button" onClick={() => openTripSection('expenses')}>View all →</button></header><div className="empty-card-icon coral">₺</div><strong>Nothing to split yet</strong><p>Shared costs will stay organized here.</p></article>
           <article className="dash-card balance-card"><header><h3><span>▥</span> Your balance</h3><button type="button" onClick={() => openTripSection('balances')}>View all →</button></header><div className="balance-zero">₺0.00</div><strong>All settled up</strong><p>Your group balances will appear as expenses are added.</p></article>
         </section>
+
+        {nextTrip && <section className="dashboard-checklist">
+          <div className="dashboard-checklist-mark">✓</div>
+          <div className="dashboard-checklist-copy"><p>TRIP CHECKLIST</p><h2>{checklistSummary?.total ? `${checklistSummary.completed} of ${checklistSummary.total} completed` : 'Nothing on the list yet.'}</h2><span>{checklistSummary?.overdue ? `${checklistSummary.overdue} ${checklistSummary.overdue === 1 ? 'task needs' : 'tasks need'} attention` : checklistSummary?.total ? 'Everything is moving in the right direction.' : 'Add the first task and get everyone ready.'}</span></div>
+          <div className="dashboard-checklist-progress"><div><i><b style={{ width: `${checklistProgress}%` }} /></i><strong>{checklistProgress}%</strong></div><button type="button" onClick={() => onOpenTrip(nextTrip, 'checklist')}>{checklistSummary?.total ? 'Open checklist' : 'Add the first task'} →</button></div>
+        </section>}
 
         <section className="trip-collection">
           <div className="section-heading"><div><p>YOUR COLLECTION</p><h2>More adventures</h2></div><button type="button" onClick={() => setCreating(true)}>＋ Create trip</button></div>

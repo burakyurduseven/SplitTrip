@@ -32,13 +32,16 @@ describe('App', () => {
         trip('later', 'Later Journey', '2099-08-10', '2099-08-15'),
         trip('past', 'Past Journey', '2000-05-01', '2000-05-05'),
         trip('nearest', 'Nearest Journey', '2098-03-10', '2098-03-14'),
-      ] }))
+      ] })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ total: 7, completed: 4, overdue: 2, assignedToCurrentUser: 3 }) }))
 
     render(<App />)
 
     expect(await screen.findByRole('heading', { name: 'Nearest Journey' })).toBeDefined()
     expect(screen.getByRole('heading', { name: 'Later Journey' })).toBeDefined()
     expect(screen.queryByRole('heading', { name: 'Past Journey' })).toBeNull()
+    expect(screen.getByRole('heading', { name: '4 of 7 completed' })).toBeDefined()
+    expect(screen.getByText('2 tasks need attention')).toBeDefined()
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Trips/ }))
     fireEvent.click(screen.getByRole('tab', { name: /Past/ }))
@@ -53,6 +56,7 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'user-1', displayName: 'Burak Yurduseven', email: 'burak@example.com', createdAt: '2026-10-02T00:00:00Z' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ([{ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }]) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ total: 0, completed: 0, overdue: 0, assignedToCurrentUser: 0 }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Summer', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ([{ userId: 'user-1', displayName: 'Burak Yurduseven', email: 'burak@example.com', role: 'OWNER', joinedAt: '2026-10-02T00:00:00Z' }]) })
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
@@ -131,6 +135,7 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => ({ accessToken: 'token' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'user-1', displayName: 'Burak', email: 'burak@example.com', createdAt: '2026-10-02T00:00:00Z' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => [trip] })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ total: 0, completed: 0, overdue: 0, assignedToCurrentUser: 0 }) })
       .mockResolvedValueOnce({ ok: true, json: async () => trip })
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
       .mockResolvedValueOnce({ ok: true, json: async () => [] })

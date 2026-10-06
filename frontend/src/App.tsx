@@ -6,9 +6,14 @@ import { TripsPage } from './TripsPage'
 import { TripDetailPage } from './TripDetailPage'
 import { InvitationPage } from './InvitationPage'
 import type { AppPage, TripSection } from './AppNavigation'
-import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
+import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, ChecklistSummary, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
 
 type AuthMode = 'login' | 'register'
+
+const today = () => new Date().toLocaleDateString('en-CA')
+const nextUpcomingTrip = (trips: Trip[]) => trips
+  .filter(trip => trip.status === 'ACTIVE' && trip.endDate >= today())
+  .sort((left, right) => left.startDate.localeCompare(right.startDate) || left.createdAt.localeCompare(right.createdAt))[0]
 
 const readProblem = async (response: Response): Promise<ApiProblem> => {
   try {
@@ -52,6 +57,7 @@ function App() {
   const [balances, setBalances] = useState<BalanceSummary | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
   const [checklist, setChecklist] = useState<ChecklistItem[]>([])
+  const [checklistSummaries, setChecklistSummaries] = useState<Record<string, ChecklistSummary>>({})
   const [tripLoading, setTripLoading] = useState(false)
   const [tripLoadError, setTripLoadError] = useState('')
   const [invitation, setInvitation] = useState<InvitationPreview | null>(null)
@@ -70,6 +76,7 @@ function App() {
     setBalances(null)
     setSettlements([])
     setChecklist([])
+    setChecklistSummaries({})
     setTripLoadError('')
     setUser(null)
     setMode('login')
@@ -116,6 +123,14 @@ function App() {
     setAccessToken(token)
     setUser(await profileResponse.json() as CurrentUser)
     setTrips(loadedTrips)
+
+    if (window.location.pathname === '/') {
+      const nextTrip = nextUpcomingTrip(loadedTrips)
+      if (nextTrip) {
+        const summaryResponse = await fetch(`/api/v1/trips/${nextTrip.id}/checklist/summary`, { headers: authorization })
+        if (summaryResponse.ok) setChecklistSummaries({ [nextTrip.id]: await summaryResponse.json() as ChecklistSummary })
+      }
+    }
 
     const tripRoute = window.location.pathname.match(/^\/trips\/([0-9a-f-]+)$/i)
     if (tripRoute) {
@@ -227,9 +242,21 @@ function App() {
     setTrips(current => [trip, ...current])
   }
 
+  const refreshChecklistSummary = async (tripId: string) => {
+    const response = await authenticatedFetch(`/api/v1/trips/${tripId}/checklist/summary`)
+    if (response.ok) {
+      const summary = await response.json() as ChecklistSummary
+      setChecklistSummaries(current => ({ ...current, [tripId]: summary }))
+    }
+  }
+
   const navigate = (nextPage: AppPage) => {
     window.history.pushState({}, '', nextPage === 'home' ? '/' : '/trips')
     setPage(nextPage)
+    if (nextPage === 'home') {
+      const nextTrip = nextUpcomingTrip(trips)
+      if (nextTrip) void refreshChecklistSummary(nextTrip.id)
+    }
   }
 
   const openTrip = async (trip: Trip, updateHistory = true, section: TripSection = 'overview') => {
@@ -364,6 +391,7 @@ function App() {
     if (!response.ok) { const problem = await readProblem(response); const fieldError = problem.errors && Object.values(problem.errors)[0]; throw new Error(fieldError ?? problem.detail ?? 'We could not save this task.') }
     const saved = await response.json() as ChecklistItem
     setChecklist(current => itemId ? current.map(item => item.id === saved.id ? saved : item) : [...current, saved])
+    await refreshChecklistSummary(selectedTrip.id)
   }
 
   const changeChecklistStatus = async (itemId: string, status: ChecklistStatus) => {
@@ -372,6 +400,7 @@ function App() {
     if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not update this task.') }
     const updated = await response.json() as ChecklistItem
     setChecklist(current => current.map(item => item.id === updated.id ? updated : item))
+    await refreshChecklistSummary(selectedTrip.id)
   }
 
   const deleteChecklistItem = async (itemId: string) => {
@@ -379,6 +408,7 @@ function App() {
     const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/checklist/${itemId}`, { method: 'DELETE' })
     if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not delete this task.') }
     setChecklist(current => current.filter(item => item.id !== itemId))
+    await refreshChecklistSummary(selectedTrip.id)
   }
 
   const recordSettlement = async (input: SettlementInput) => {
@@ -461,7 +491,7 @@ function App() {
 
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
-    const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip, section: TripSection = 'overview') => void openTrip(trip, true, section), onCreateTrip: createTrip, onLogout: logout }
+    const pageProps = { user, trips, checklistSummaries, onNavigate: navigate, onOpenTrip: (trip: Trip, section: TripSection = 'overview') => void openTrip(trip, true, section), onCreateTrip: createTrip, onLogout: logout }
     if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} checklist={checklist} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onUpdateTrip={updateTrip} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onSaveChecklist={saveChecklistItem} onChecklistStatusChange={changeChecklistStatus} onDeleteChecklist={deleteChecklistItem} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }

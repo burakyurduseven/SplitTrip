@@ -178,3 +178,9 @@ export type ChecklistItemInput = {
   priority: ChecklistPriority
   dueDate: string | null
 }
+export type ChecklistSummary = {
+  total: number
+  completed: number
+  overdue: number
+  assignedToCurrentUser: number
+}

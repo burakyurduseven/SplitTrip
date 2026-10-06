@@ -33,6 +33,14 @@ public class ChecklistService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public ChecklistSummaryView summary(UUID tripId, UUID userId) {
+        requireMembership(tripId, userId);
+        var summary = repository.summarize(tripId, userId, LocalDate.now());
+        return new ChecklistSummaryView(summary.getTotal(), summary.getCompleted(), summary.getOverdue(),
+                summary.getAssignedToCurrentUser());
+    }
+
     @Transactional
     public ChecklistItemView create(UUID tripId, UUID userId, String title, String description,
             UUID assigneeId, boolean assignedToEveryone, ChecklistPriority priority, LocalDate dueDate) {
@@ -127,4 +135,5 @@ public class ChecklistService {
             String assigneeName, boolean assignedToEveryone, ChecklistStatus status, ChecklistPriority priority,
             LocalDate dueDate, UUID createdById, String createdByName, Instant createdAt, Instant updatedAt,
             Instant completedAt) {}
+    public record ChecklistSummaryView(long total, long completed, long overdue, long assignedToCurrentUser) {}
 }
