@@ -9,21 +9,31 @@ import org.springframework.transaction.annotation.Transactional;
 import com.splittrip.trip.domain.*;
 import com.splittrip.trip.infrastructure.*;
 import jakarta.persistence.EntityManager;
+import com.splittrip.common.storage.FileStorageService;
+import com.splittrip.trip.application.ExpenseAttachmentService.AttachmentView;
 
 @Service
 public class ExpenseService {
     private final ExpenseRepository expenseRepository;
     private final TripMemberRepository memberRepository;
     private final EntityManager entityManager;
+    private final ExpenseAttachmentRepository attachmentRepository;
+    private final FileStorageService storage;
 
-    public ExpenseService(ExpenseRepository expenseRepository, TripMemberRepository memberRepository, EntityManager entityManager) {
+    public ExpenseService(ExpenseRepository expenseRepository, TripMemberRepository memberRepository, EntityManager entityManager,
+            ExpenseAttachmentRepository attachmentRepository, FileStorageService storage) {
         this.expenseRepository = expenseRepository; this.memberRepository = memberRepository; this.entityManager = entityManager;
+        this.attachmentRepository = attachmentRepository; this.storage = storage;
     }
 
     @Transactional(readOnly = true)
     public List<ExpenseView> list(UUID tripId, UUID userId) {
         requireMembership(tripId, userId);
-        return expenseRepository.findByTripIdWithShares(tripId).stream().map(this::toView).toList();
+        var attachments = attachmentRepository.findByTripId(tripId).stream()
+                .collect(java.util.stream.Collectors.groupingBy(value -> value.getExpense().getId()));
+        return expenseRepository.findByTripIdWithShares(tripId).stream()
+                .map(expense -> toView(expense, attachments.getOrDefault(expense.getId(), List.of()).stream().map(this::toAttachmentView).toList()))
+                .toList();
     }
 
     @Transactional
@@ -35,7 +45,7 @@ public class ExpenseService {
         var expense = Expense.create(membership.getTrip(), paidBy.getUser(), membership.getUser(), input.title().trim(),
                 money(input.amount()), input.expenseDate(), input.splitMethod(), clean(input.note()));
         addShares(expense, input, members);
-        return toView(expenseRepository.save(expense));
+        return toView(expenseRepository.save(expense), List.of());
     }
 
     @Transactional
@@ -49,7 +59,8 @@ public class ExpenseService {
         expense.update(paidBy.getUser(), input.title().trim(), money(input.amount()), input.expenseDate(), input.splitMethod(), clean(input.note()));
         entityManager.flush();
         addShares(expense, input, members);
-        return toView(expenseRepository.save(expense));
+        var saved = expenseRepository.save(expense);
+        return toView(saved, attachmentRepository.findByExpenseId(expenseId).stream().map(this::toAttachmentView).toList());
     }
 
     @Transactional
@@ -57,6 +68,8 @@ public class ExpenseService {
         requireMembership(tripId, userId);
         var expense = expenseRepository.findByIdAndTripIdWithShares(expenseId, tripId)
                 .orElseThrow(() -> new InvalidExpenseException("Expense not found."));
+        var attachments = attachmentRepository.findByExpenseId(expenseId);
+        attachments.forEach(attachment -> storage.delete(attachment.getStorageKey()));
         expenseRepository.delete(expense);
     }
 
@@ -108,11 +121,12 @@ public class ExpenseService {
     private BigDecimal positiveMoney(BigDecimal value, String message) { if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) throw new InvalidExpenseException(message); try { return money(value); } catch (ArithmeticException exception) { throw new InvalidExpenseException("Money values can have at most two decimal places."); } }
     private BigDecimal positivePercentage(BigDecimal value) { if (value == null || value.compareTo(BigDecimal.ZERO) <= 0) throw new InvalidExpenseException("Every percentage must be greater than zero."); try { return value.setScale(2, RoundingMode.UNNECESSARY); } catch (ArithmeticException exception) { throw new InvalidExpenseException("Percentages can have at most two decimal places."); } }
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
-    private ExpenseView toView(Expense expense) { return new ExpenseView(expense.getId(), expense.getTitle(), expense.getAmount(), expense.getExpenseDate(), expense.getSplitMethod(), expense.getNote(), expense.getPaidBy().getId(), expense.getPaidBy().getDisplayName(), expense.getCreatedBy().getDisplayName(), expense.getShares().stream().map(share -> new ShareView(share.getUser().getId(), share.getUser().getDisplayName(), share.getAmount(), share.getPercentage())).toList(), expense.getCreatedAt()); }
+    private AttachmentView toAttachmentView(ExpenseAttachment value) { return new AttachmentView(value.getId(), value.getOriginalName(), value.getContentType(), value.getSizeBytes(), value.getUploadedBy().getDisplayName(), value.getCreatedAt()); }
+    private ExpenseView toView(Expense expense, List<AttachmentView> attachments) { return new ExpenseView(expense.getId(), expense.getTitle(), expense.getAmount(), expense.getExpenseDate(), expense.getSplitMethod(), expense.getNote(), expense.getPaidBy().getId(), expense.getPaidBy().getDisplayName(), expense.getCreatedBy().getDisplayName(), expense.getShares().stream().map(share -> new ShareView(share.getUser().getId(), share.getUser().getDisplayName(), share.getAmount(), share.getPercentage())).toList(), attachments, expense.getCreatedAt()); }
 
     public record ParticipantInput(UUID userId, BigDecimal amount, BigDecimal percentage) {}
     public record ExpenseInput(String title, BigDecimal amount, LocalDate expenseDate, UUID paidById, ExpenseSplitMethod splitMethod, String note, List<ParticipantInput> participants) {}
     private record ResolvedParticipant(TripMember member, BigDecimal amount, BigDecimal percentage) {}
     public record ShareView(UUID userId, String displayName, BigDecimal amount, BigDecimal percentage) {}
-    public record ExpenseView(UUID id, String title, BigDecimal amount, LocalDate expenseDate, ExpenseSplitMethod splitMethod, String note, UUID paidById, String paidByName, String createdByName, List<ShareView> shares, Instant createdAt) {}
+    public record ExpenseView(UUID id, String title, BigDecimal amount, LocalDate expenseDate, ExpenseSplitMethod splitMethod, String note, UUID paidById, String paidByName, String createdByName, List<ShareView> shares, List<AttachmentView> attachments, Instant createdAt) {}
 }

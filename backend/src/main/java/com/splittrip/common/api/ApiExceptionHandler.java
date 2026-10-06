@@ -24,9 +24,19 @@ import com.splittrip.trip.application.InvalidItineraryException;
 import com.splittrip.trip.application.InvalidExpenseException;
 import com.splittrip.trip.application.TripUpdateConflictException;
 import com.splittrip.trip.application.InvalidChecklistException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    ResponseEntity<ProblemDetail> handleUploadTooLarge(MaxUploadSizeExceededException exception, HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, "Each document must be 10 MB or smaller.");
+        problem.setTitle("Document too large");
+        problem.setType(URI.create("https://splittrip.app/problems/document-too-large"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.badRequest().body(problem);
+    }
 
     @ExceptionHandler(InvalidChecklistException.class)
     ResponseEntity<ProblemDetail> handleInvalidChecklist(InvalidChecklistException exception, HttpServletRequest request) {

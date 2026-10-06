@@ -6,7 +6,7 @@ import { TripsPage } from './TripsPage'
 import { TripDetailPage } from './TripDetailPage'
 import { InvitationPage } from './InvitationPage'
 import type { AppPage, TripSection } from './AppNavigation'
-import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, ChecklistSummary, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
+import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, ChecklistSummary, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseAttachment, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
 
 type AuthMode = 'login' | 'register'
 
@@ -378,6 +378,32 @@ function App() {
     setExpenses(current => expenseId ? current.map(expense => expense.id === saved.id ? saved : expense) : [saved, ...current])
     const balancesResponse = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/balances`)
     if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
+    return saved
+  }
+
+  const uploadExpenseAttachments = async (expenseId: string, files: File[]) => {
+    if (!selectedTrip) throw new Error('No trip is selected.')
+    const body = new FormData()
+    files.forEach(file => body.append('files', file))
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/expenses/${expenseId}/attachments`, { method: 'POST', body })
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not upload these documents.') }
+    const attachments = await response.json() as ExpenseAttachment[]
+    setExpenses(current => current.map(expense => expense.id === expenseId ? { ...expense, attachments: [...expense.attachments, ...attachments] } : expense))
+    return attachments
+  }
+
+  const fetchExpenseAttachment = async (expenseId: string, attachmentId: string, download = false) => {
+    if (!selectedTrip) throw new Error('No trip is selected.')
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/expenses/${expenseId}/attachments/${attachmentId}/content?download=${download}`)
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not open this document.') }
+    return response.blob()
+  }
+
+  const deleteExpenseAttachment = async (expenseId: string, attachmentId: string) => {
+    if (!selectedTrip) return
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/expenses/${expenseId}/attachments/${attachmentId}`, { method: 'DELETE' })
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not delete this document.') }
+    setExpenses(current => current.map(expense => expense.id === expenseId ? { ...expense, attachments: expense.attachments.filter(item => item.id !== attachmentId) } : expense))
   }
 
   const deleteExpense = async (expenseId: string) => {
@@ -496,7 +522,7 @@ function App() {
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
     const pageProps = { user, trips, checklistSummaries, onLoadChecklistSummary: refreshChecklistSummary, onNavigate: navigate, onOpenTrip: (trip: Trip, section: TripSection = 'overview') => void openTrip(trip, true, section), onCreateTrip: createTrip, onLogout: logout }
-    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} checklist={checklist} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onUpdateTrip={updateTrip} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onSaveChecklist={saveChecklistItem} onChecklistStatusChange={changeChecklistStatus} onDeleteChecklist={deleteChecklistItem} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
+    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} checklist={checklist} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onUpdateTrip={updateTrip} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onUploadExpenseAttachments={uploadExpenseAttachments} onFetchExpenseAttachment={fetchExpenseAttachment} onDeleteExpenseAttachment={deleteExpenseAttachment} onSaveChecklist={saveChecklistItem} onChecklistStatusChange={changeChecklistStatus} onDeleteChecklist={deleteChecklistItem} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

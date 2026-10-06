@@ -84,6 +84,7 @@ export type ItineraryItem = {
 
 export type ExpenseSplitMethod = 'EQUAL' | 'EXACT' | 'PERCENTAGE'
 export type ExpenseShare = { userId: string; displayName: string; amount: number; percentage: number | null }
+export type ExpenseAttachment = { id: string; originalName: string; contentType: string; sizeBytes: number; uploadedByName: string; createdAt: string }
 export type Expense = {
   id: string
   title: string
@@ -95,6 +96,7 @@ export type Expense = {
   paidByName: string
   createdByName: string
   shares: ExpenseShare[]
+  attachments: ExpenseAttachment[]
   createdAt: string
 }
 export type ExpenseInput = {

@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,6 +25,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.mock.web.MockMultipartFile;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.postgresql.PostgreSQLContainer;
@@ -38,13 +40,14 @@ import com.splittrip.trip.infrastructure.ItineraryItemRepository;
 import com.splittrip.trip.infrastructure.ExpenseRepository;
 import com.splittrip.trip.infrastructure.SettlementRepository;
 import com.splittrip.trip.infrastructure.ChecklistItemRepository;
+import com.splittrip.trip.infrastructure.ExpenseAttachmentRepository;
 import com.splittrip.trip.infrastructure.TripRepository;
 import com.splittrip.user.infrastructure.UserAccountRepository;
 import com.splittrip.trip.domain.TripMember;
 import jakarta.persistence.EntityManagerFactory;
 import org.hibernate.SessionFactory;
 
-@SpringBootTest
+@SpringBootTest(properties = "splittrip.storage.root=target/test-uploads")
 @AutoConfigureMockMvc
 @Testcontainers
 class TripIntegrationTest {
@@ -68,6 +71,7 @@ class TripIntegrationTest {
     @Autowired private ActivityVoteRepository activityVoteRepository;
     @Autowired private ActivityIdeaRepository activityIdeaRepository;
     @Autowired private ChecklistItemRepository checklistItemRepository;
+    @Autowired private ExpenseAttachmentRepository expenseAttachmentRepository;
 
     @Autowired
     private TripRepository tripRepository;
@@ -84,6 +88,7 @@ class TripIntegrationTest {
     @BeforeEach
     void cleanDatabase() {
         checklistItemRepository.deleteAll();
+        expenseAttachmentRepository.deleteAll();
         settlementRepository.deleteAll();
         expenseRepository.deleteAll();
         itineraryItemRepository.deleteAll();
@@ -94,6 +99,42 @@ class TripIntegrationTest {
         tripRepository.deleteAll();
         refreshSessionRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    @Test
+    void uploadsReadsAndDeletesExpenseDocuments() throws Exception {
+        var token = registerAndLogin("owner@example.com", "Trip Owner");
+        var tripId = createTrip(token, "Aegean Summer");
+        var owner = userRepository.findByEmail("owner@example.com").orElseThrow();
+        var expenseResult = mockMvc.perform(post("/api/v1/trips/{tripId}/expenses", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)).contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Dinner","amount":120.00,"expenseDate":"2027-07-13","paidById":"%s","splitMethod":"EQUAL","participants":[{"userId":"%s"}]}
+                                """.formatted(owner.getId(), owner.getId())))
+                .andExpect(status().isCreated()).andReturn();
+        String expenseId = JsonPath.read(expenseResult.getResponse().getContentAsString(), "$.id");
+        byte[] png = new byte[]{(byte) 0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3};
+        var file = new MockMultipartFile("files", "receipt.png", "image/png", png);
+
+        var upload = mockMvc.perform(multipart("/api/v1/trips/{tripId}/expenses/{expenseId}/attachments", tripId, expenseId)
+                        .file(file).header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$[0].originalName").value("receipt.png"))
+                .andExpect(jsonPath("$[0].contentType").value("image/png"))
+                .andReturn();
+        String attachmentId = JsonPath.read(upload.getResponse().getContentAsString(), "$[0].id");
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/expenses/{expenseId}/attachments/{attachmentId}/content", tripId, expenseId, attachmentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/png"));
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/expenses", tripId).header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isOk()).andExpect(jsonPath("$[0].attachments", hasSize(1)));
+
+        mockMvc.perform(delete("/api/v1/trips/{tripId}/expenses/{expenseId}/attachments/{attachmentId}", tripId, expenseId, attachmentId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(token)))
+                .andExpect(status().isNoContent());
     }
 
     @Test

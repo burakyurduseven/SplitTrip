@@ -7,7 +7,7 @@ import { BalanceWorkspace } from './BalanceWorkspace'
 import { ChecklistWorkspace } from './ChecklistWorkspace'
 import { EditTripDialog } from './EditTripDialog'
 import type { AppPage, TripSection } from './AppNavigation'
-import type { ActivityIdea, ActivityVoteValue, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
+import type { ActivityIdea, ActivityVoteValue, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, CreateActivityIdeaInput, Expense, ExpenseAttachment, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
 
 type Props = {
   trip: Trip
@@ -32,8 +32,11 @@ type Props = {
   onSchedule: (input: ScheduleActivityInput) => Promise<ItineraryItem>
   onUpdateSchedule: (itemId: string, input: UpdateScheduleInput) => Promise<ItineraryItem>
   onRemoveSchedule: (itemId: string, ideaId: string) => Promise<void>
-  onSaveExpense: (input: ExpenseInput, expenseId?: string) => Promise<void>
+  onSaveExpense: (input: ExpenseInput, expenseId?: string) => Promise<Expense>
   onDeleteExpense: (expenseId: string) => Promise<void>
+  onUploadExpenseAttachments: (expenseId: string, files: File[]) => Promise<ExpenseAttachment[]>
+  onFetchExpenseAttachment: (expenseId: string, attachmentId: string, download?: boolean) => Promise<Blob>
+  onDeleteExpenseAttachment: (expenseId: string, attachmentId: string) => Promise<void>
   onSaveChecklist: (input: ChecklistItemInput, itemId?: string) => Promise<void>
   onChecklistStatusChange: (itemId: string, status: ChecklistStatus) => Promise<void>
   onDeleteChecklist: (itemId: string) => Promise<void>
@@ -52,7 +55,7 @@ function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy:
   return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p></div>
 }
 
-export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, checklist, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onUpdateTrip, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onSaveChecklist, onChecklistStatusChange, onDeleteChecklist, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
+export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, checklist, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onUpdateTrip, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onUploadExpenseAttachments, onFetchExpenseAttachment, onDeleteExpenseAttachment, onSaveChecklist, onChecklistStatusChange, onDeleteChecklist, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
   const [section, setSection] = useState<Section>(initialSection)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
@@ -115,7 +118,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
           </div>}
           {!loading && !loadError && section === 'itinerary' && <ItineraryWorkspace trip={trip} ideas={ideas} itinerary={itinerary} onCreateIdea={onCreateIdea} onVote={onVote} onSchedule={onSchedule} onUpdateSchedule={onUpdateSchedule} onRemoveSchedule={onRemoveSchedule} />}
           {!loading && !loadError && section === 'checklist' && <ChecklistWorkspace trip={trip} members={members} items={checklist} currentUserId={currentUserId} onSave={onSaveChecklist} onStatusChange={onChecklistStatusChange} onDelete={onDeleteChecklist} />}
-          {!loading && !loadError && section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} />}
+          {!loading && !loadError && section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} onUploadAttachments={onUploadExpenseAttachments} onFetchAttachment={onFetchExpenseAttachment} onDeleteAttachment={onDeleteExpenseAttachment} />}
           {!loading && !loadError && section === 'balances' && <BalanceWorkspace trip={trip} summary={balances} settlements={settlements} currentUserId={currentUserId} onRecord={onRecordSettlement} onVoid={onVoidSettlement} />}
           {!loading && !loadError && section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}
         </section>
