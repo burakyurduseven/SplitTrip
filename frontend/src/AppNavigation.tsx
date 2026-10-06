@@ -1,5 +1,5 @@
 export type AppPage = 'home' | 'trips'
-export type TripSection = 'overview' | 'itinerary' | 'expenses' | 'balances' | 'members'
+export type TripSection = 'overview' | 'itinerary' | 'checklist' | 'expenses' | 'balances' | 'members'
 
 type Props = {
   activePage: AppPage
@@ -14,6 +14,7 @@ const items: Array<{ label: string; icon: string; page?: AppPage; section?: Trip
   { label: 'Home', icon: '⌂', page: 'home' as const },
   { label: 'Trips', icon: '▢', page: 'trips' as const },
   { label: 'Itinerary', icon: '⌁', section: 'itinerary' },
+  { label: 'Checklist', icon: '✓', section: 'checklist' },
   { label: 'Expenses', icon: '▤', section: 'expenses' },
   { label: 'Balances', icon: '▥', section: 'balances' },
 ]

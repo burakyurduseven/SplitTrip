@@ -6,7 +6,7 @@ import { TripsPage } from './TripsPage'
 import { TripDetailPage } from './TripDetailPage'
 import { InvitationPage } from './InvitationPage'
 import type { AppPage, TripSection } from './AppNavigation'
-import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
+import type { AccessTokenResponse, ActivityIdea, ActivityVoteValue, ApiProblem, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, CreateActivityIdeaInput, CreateTripInput, CurrentUser, Expense, ExpenseInput, InvitationPreview, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
 
 type AuthMode = 'login' | 'register'
 
@@ -51,6 +51,7 @@ function App() {
   const [expenses, setExpenses] = useState<Expense[]>([])
   const [balances, setBalances] = useState<BalanceSummary | null>(null)
   const [settlements, setSettlements] = useState<Settlement[]>([])
+  const [checklist, setChecklist] = useState<ChecklistItem[]>([])
   const [tripLoading, setTripLoading] = useState(false)
   const [tripLoadError, setTripLoadError] = useState('')
   const [invitation, setInvitation] = useState<InvitationPreview | null>(null)
@@ -68,6 +69,7 @@ function App() {
     setExpenses([])
     setBalances(null)
     setSettlements([])
+    setChecklist([])
     setTripLoadError('')
     setUser(null)
     setMode('login')
@@ -117,7 +119,7 @@ function App() {
 
     const tripRoute = window.location.pathname.match(/^\/trips\/([0-9a-f-]+)$/i)
     if (tripRoute) {
-      const [detailResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse] = await Promise.all([
+      const [detailResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse, checklistResponse] = await Promise.all([
         fetch(`/api/v1/trips/${tripRoute[1]}`, { headers: authorization }),
         fetch(`/api/v1/trips/${tripRoute[1]}/members`, { headers: authorization }),
         fetch(`/api/v1/trips/${tripRoute[1]}/activity-ideas`, { headers: authorization }),
@@ -125,6 +127,7 @@ function App() {
         fetch(`/api/v1/trips/${tripRoute[1]}/expenses`, { headers: authorization }),
         fetch(`/api/v1/trips/${tripRoute[1]}/balances`, { headers: authorization }),
         fetch(`/api/v1/trips/${tripRoute[1]}/settlements`, { headers: authorization }),
+        fetch(`/api/v1/trips/${tripRoute[1]}/checklist`, { headers: authorization }),
       ])
       if (detailResponse.ok) {
         setSelectedTrip(await detailResponse.json() as Trip)
@@ -134,6 +137,7 @@ function App() {
         if (expensesResponse.ok) setExpenses(await expensesResponse.json() as Expense[])
         if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
         if (settlementsResponse.ok) setSettlements(await settlementsResponse.json() as Settlement[])
+        if (checklistResponse.ok) setChecklist(await checklistResponse.json() as ChecklistItem[])
         setPage('trip')
       } else {
         window.history.replaceState({}, '', '/trips')
@@ -236,7 +240,7 @@ function App() {
     setTripLoadError('')
     if (updateHistory) window.history.pushState({}, '', `/trips/${trip.id}`)
     try {
-      const [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse] = await Promise.all([
+      const [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse, checklistResponse] = await Promise.all([
         authenticatedFetch(`/api/v1/trips/${trip.id}`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/members`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/activity-ideas`),
@@ -244,8 +248,9 @@ function App() {
         authenticatedFetch(`/api/v1/trips/${trip.id}/expenses`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/balances`),
         authenticatedFetch(`/api/v1/trips/${trip.id}/settlements`),
+        authenticatedFetch(`/api/v1/trips/${trip.id}/checklist`),
       ])
-      const failedResponse = [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse].find(response => !response.ok)
+      const failedResponse = [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse, checklistResponse].find(response => !response.ok)
       if (failedResponse) {
         const problem = await readProblem(failedResponse)
         throw new Error(problem.detail ?? 'Some trip information could not be loaded.')
@@ -257,6 +262,7 @@ function App() {
       if (expensesResponse.ok) setExpenses(await expensesResponse.json() as Expense[])
       if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
       if (settlementsResponse.ok) setSettlements(await settlementsResponse.json() as Settlement[])
+      if (checklistResponse.ok) setChecklist(await checklistResponse.json() as ChecklistItem[])
     } catch (reason) {
       setTripLoadError(reason instanceof Error ? reason.message : 'We could not load this trip. Check your connection and try again.')
     } finally {
@@ -352,6 +358,29 @@ function App() {
     if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
   }
 
+  const saveChecklistItem = async (input: ChecklistItemInput, itemId?: string) => {
+    if (!selectedTrip) throw new Error('No trip is selected.')
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/checklist${itemId ? `/${itemId}` : ''}`, { method: itemId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) })
+    if (!response.ok) { const problem = await readProblem(response); const fieldError = problem.errors && Object.values(problem.errors)[0]; throw new Error(fieldError ?? problem.detail ?? 'We could not save this task.') }
+    const saved = await response.json() as ChecklistItem
+    setChecklist(current => itemId ? current.map(item => item.id === saved.id ? saved : item) : [...current, saved])
+  }
+
+  const changeChecklistStatus = async (itemId: string, status: ChecklistStatus) => {
+    if (!selectedTrip) return
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/checklist/${itemId}/status`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) })
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not update this task.') }
+    const updated = await response.json() as ChecklistItem
+    setChecklist(current => current.map(item => item.id === updated.id ? updated : item))
+  }
+
+  const deleteChecklistItem = async (itemId: string) => {
+    if (!selectedTrip) return
+    const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/checklist/${itemId}`, { method: 'DELETE' })
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not delete this task.') }
+    setChecklist(current => current.filter(item => item.id !== itemId))
+  }
+
   const recordSettlement = async (input: SettlementInput) => {
     if (!selectedTrip) throw new Error('No trip is selected.')
     const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/settlements`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input) })
@@ -384,6 +413,7 @@ function App() {
     if (response.ok) {
       setTrips(current => current.filter(trip => trip.id !== selectedTrip.id))
       setMembers([])
+      setChecklist([])
       setSelectedTrip(null)
       navigate('trips')
     }
@@ -432,7 +462,7 @@ function App() {
   if (user) {
     if (invitation) return <InvitationPage invitation={invitation} userName={user.displayName} joining={joining} error={joinError} onAccept={acceptInvitation} onCancel={() => { setInvitation(null); navigate('trips') }} />
     const pageProps = { user, trips, onNavigate: navigate, onOpenTrip: (trip: Trip, section: TripSection = 'overview') => void openTrip(trip, true, section), onCreateTrip: createTrip, onLogout: logout }
-    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onUpdateTrip={updateTrip} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
+    if (page === 'trip' && selectedTrip) return <TripDetailPage trip={selectedTrip} members={members} ideas={ideas} itinerary={itinerary} expenses={expenses} balances={balances} settlements={settlements} checklist={checklist} currentUserId={user.id} initialSection={selectedTripSection} loading={tripLoading} loadError={tripLoadError} onRetry={() => void openTrip(selectedTrip, false, selectedTripSection)} onNavigate={navigate} onCreateTrip={() => navigate('trips')} onCreateInvitation={createInvitation} onUpdateTrip={updateTrip} onCreateIdea={createActivityIdea} onVote={voteOnIdea} onSchedule={scheduleActivity} onUpdateSchedule={updateScheduledActivity} onRemoveSchedule={removeScheduledActivity} onSaveExpense={saveExpense} onDeleteExpense={deleteExpense} onSaveChecklist={saveChecklistItem} onChecklistStatusChange={changeChecklistStatus} onDeleteChecklist={deleteChecklistItem} onRecordSettlement={recordSettlement} onVoidSettlement={voidSettlement} onRemoveMember={removeMember} onLeaveTrip={leaveTrip} onLogout={logout} />
     return page === 'trips' ? <TripsPage {...pageProps} /> : <Dashboard {...pageProps} />
   }
 

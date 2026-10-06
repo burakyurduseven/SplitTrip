@@ -23,9 +23,19 @@ import com.splittrip.trip.application.TripAccessDeniedException;
 import com.splittrip.trip.application.InvalidItineraryException;
 import com.splittrip.trip.application.InvalidExpenseException;
 import com.splittrip.trip.application.TripUpdateConflictException;
+import com.splittrip.trip.application.InvalidChecklistException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(InvalidChecklistException.class)
+    ResponseEntity<ProblemDetail> handleInvalidChecklist(InvalidChecklistException exception, HttpServletRequest request) {
+        var problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        problem.setTitle("Invalid checklist task");
+        problem.setType(URI.create("https://splittrip.app/problems/invalid-checklist-task"));
+        problem.setInstance(URI.create(request.getRequestURI()));
+        return ResponseEntity.badRequest().body(problem);
+    }
 
     @ExceptionHandler(TripUpdateConflictException.class)
     ResponseEntity<ProblemDetail> handleTripUpdateConflict(TripUpdateConflictException exception, HttpServletRequest request) {

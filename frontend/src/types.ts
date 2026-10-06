@@ -151,3 +151,30 @@ export type SettlementInput = {
   settlementDate: string
   note: string
 }
+
+export type ChecklistStatus = 'TODO' | 'IN_PROGRESS' | 'COMPLETED'
+export type ChecklistPriority = 'LOW' | 'MEDIUM' | 'HIGH'
+export type ChecklistItem = {
+  id: string
+  title: string
+  description: string | null
+  assigneeId: string | null
+  assigneeName: string | null
+  assignedToEveryone: boolean
+  status: ChecklistStatus
+  priority: ChecklistPriority
+  dueDate: string | null
+  createdById: string
+  createdByName: string
+  createdAt: string
+  updatedAt: string
+  completedAt: string | null
+}
+export type ChecklistItemInput = {
+  title: string
+  description: string
+  assigneeId: string | null
+  assignedToEveryone: boolean
+  priority: ChecklistPriority
+  dueDate: string | null
+}

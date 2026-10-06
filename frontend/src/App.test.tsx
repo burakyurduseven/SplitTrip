@@ -60,6 +60,7 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ totalSpent: 0, members: [], suggestedTransfers: [] }) })
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ id: 'trip-1', ownerId: 'user-1', title: 'Aegean Autumn', destination: 'Kaş, Türkiye', description: null, startDate: '2027-07-12', endDate: '2027-07-18', defaultCurrency: 'TRY', status: 'ACTIVE', currentUserRole: 'OWNER', createdAt: '2026-10-02T00:00:00Z' }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ token: 'secure-invite-token', expiresAt: '2026-10-09T00:00:00Z' }) }))
 
@@ -84,6 +85,9 @@ describe('App', () => {
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Itinerary/ }))
     expect(screen.getByRole('heading', { name: 'Idea pool' })).toBeDefined()
+
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Checklist/ }))
+    expect(screen.getByRole('heading', { name: 'Trip checklist' })).toBeDefined()
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Expenses/ }))
     expect(screen.getByRole('heading', { name: 'Money on the move' })).toBeDefined()
@@ -133,7 +137,8 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
       .mockResolvedValueOnce({ ok: true, json: async () => [] })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ totalSpent: 0, members: [], suggestedTransfers: [] }) })
-      .mockResolvedValueOnce({ ok: false, json: async () => ({ detail: 'Settlement history is temporarily unavailable.' }) }))
+      .mockResolvedValueOnce({ ok: false, json: async () => ({ detail: 'Settlement history is temporarily unavailable.' }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => [] }))
 
     render(<App />)
     fireEvent.click(within(await screen.findByRole('navigation', { name: 'Main navigation' })).getByRole('button', { name: /Trips/ }))

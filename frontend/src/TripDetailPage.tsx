@@ -4,9 +4,10 @@ import { AppNavigation } from './AppNavigation'
 import { ItineraryWorkspace } from './ItineraryWorkspace'
 import { ExpenseWorkspace } from './ExpenseWorkspace'
 import { BalanceWorkspace } from './BalanceWorkspace'
+import { ChecklistWorkspace } from './ChecklistWorkspace'
 import { EditTripDialog } from './EditTripDialog'
 import type { AppPage, TripSection } from './AppNavigation'
-import type { ActivityIdea, ActivityVoteValue, BalanceSummary, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
+import type { ActivityIdea, ActivityVoteValue, BalanceSummary, ChecklistItem, ChecklistItemInput, ChecklistStatus, CreateActivityIdeaInput, Expense, ExpenseInput, ItineraryItem, ScheduleActivityInput, Settlement, SettlementInput, Trip, TripMember, UpdateScheduleInput, UpdateTripInput } from './types'
 
 type Props = {
   trip: Trip
@@ -16,6 +17,7 @@ type Props = {
   expenses: Expense[]
   balances: BalanceSummary | null
   settlements: Settlement[]
+  checklist: ChecklistItem[]
   currentUserId: string
   initialSection?: TripSection
   loading: boolean
@@ -32,6 +34,9 @@ type Props = {
   onRemoveSchedule: (itemId: string, ideaId: string) => Promise<void>
   onSaveExpense: (input: ExpenseInput, expenseId?: string) => Promise<void>
   onDeleteExpense: (expenseId: string) => Promise<void>
+  onSaveChecklist: (input: ChecklistItemInput, itemId?: string) => Promise<void>
+  onChecklistStatusChange: (itemId: string, status: ChecklistStatus) => Promise<void>
+  onDeleteChecklist: (itemId: string) => Promise<void>
   onRecordSettlement: (input: SettlementInput) => Promise<void>
   onVoidSettlement: (settlementId: string) => Promise<void>
   onRemoveMember: (userId: string) => Promise<void>
@@ -40,14 +45,14 @@ type Props = {
 }
 
 type Section = TripSection
-const sections: Section[] = ['overview', 'itinerary', 'expenses', 'balances', 'members']
+const sections: Section[] = ['overview', 'itinerary', 'checklist', 'expenses', 'balances', 'members']
 const formatDate = (date: string) => new Intl.DateTimeFormat('en', { day: 'numeric', month: 'short', year: 'numeric' }).format(new Date(`${date}T00:00:00`))
 
 function EmptyModule({ icon, title, copy }: { icon: string; title: string; copy: string }) {
   return <div className="detail-empty"><span>{icon}</span><h3>{title}</h3><p>{copy}</p></div>
 }
 
-export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onUpdateTrip, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
+export function TripDetailPage({ trip, members, ideas, itinerary, expenses, balances, settlements, checklist, currentUserId, initialSection = 'overview', loading, loadError, onRetry, onNavigate, onCreateTrip, onCreateInvitation, onUpdateTrip, onCreateIdea, onVote, onSchedule, onUpdateSchedule, onRemoveSchedule, onSaveExpense, onDeleteExpense, onSaveChecklist, onChecklistStatusChange, onDeleteChecklist, onRecordSettlement, onVoidSettlement, onRemoveMember, onLeaveTrip, onLogout }: Props) {
   const [section, setSection] = useState<Section>(initialSection)
   const [inviteOpen, setInviteOpen] = useState(false)
   const [inviteUrl, setInviteUrl] = useState('')
@@ -109,6 +114,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
             <aside className="detail-side-stack"><article className="detail-panel"><p className="panel-kicker">TRIP CREW</p><h2>Travelling together</h2>{members.slice(0, 2).map(member => <div className="current-member" key={member.userId}><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.role.toLowerCase()}</small></div></div>)}<button type="button" className="panel-link" onClick={() => setSection('members')}>See members →</button></article><article className="detail-panel money-panel"><p className="panel-kicker">SHARED MONEY</p><h2>{currentBalance === 0 ? 'Nothing to settle.' : currentBalance > 0 ? `You get back ${trip.defaultCurrency} ${formattedBalance}.` : `You owe ${trip.defaultCurrency} ${formattedBalance}.`}</h2><p>{expenses.length ? 'Your position is calculated from every expense and share in this trip.' : 'Add expenses during the trip and SplitTrip will keep the group even.'}</p><button type="button" className="panel-link" onClick={() => setSection(expenses.length ? 'balances' : 'expenses')}>{expenses.length ? 'See balances' : 'See expenses'} →</button></article></aside>
           </div>}
           {!loading && !loadError && section === 'itinerary' && <ItineraryWorkspace trip={trip} ideas={ideas} itinerary={itinerary} onCreateIdea={onCreateIdea} onVote={onVote} onSchedule={onSchedule} onUpdateSchedule={onUpdateSchedule} onRemoveSchedule={onRemoveSchedule} />}
+          {!loading && !loadError && section === 'checklist' && <ChecklistWorkspace trip={trip} members={members} items={checklist} currentUserId={currentUserId} onSave={onSaveChecklist} onStatusChange={onChecklistStatusChange} onDelete={onDeleteChecklist} />}
           {!loading && !loadError && section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} />}
           {!loading && !loadError && section === 'balances' && <BalanceWorkspace trip={trip} summary={balances} settlements={settlements} currentUserId={currentUserId} onRecord={onRecordSettlement} onVoid={onVoidSettlement} />}
           {!loading && !loadError && section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}

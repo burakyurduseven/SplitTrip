@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -36,6 +37,7 @@ import com.splittrip.trip.infrastructure.ActivityVoteRepository;
 import com.splittrip.trip.infrastructure.ItineraryItemRepository;
 import com.splittrip.trip.infrastructure.ExpenseRepository;
 import com.splittrip.trip.infrastructure.SettlementRepository;
+import com.splittrip.trip.infrastructure.ChecklistItemRepository;
 import com.splittrip.trip.infrastructure.TripRepository;
 import com.splittrip.user.infrastructure.UserAccountRepository;
 import com.splittrip.trip.domain.TripMember;
@@ -65,6 +67,7 @@ class TripIntegrationTest {
     @Autowired private SettlementRepository settlementRepository;
     @Autowired private ActivityVoteRepository activityVoteRepository;
     @Autowired private ActivityIdeaRepository activityIdeaRepository;
+    @Autowired private ChecklistItemRepository checklistItemRepository;
 
     @Autowired
     private TripRepository tripRepository;
@@ -80,6 +83,7 @@ class TripIntegrationTest {
 
     @BeforeEach
     void cleanDatabase() {
+        checklistItemRepository.deleteAll();
         settlementRepository.deleteAll();
         expenseRepository.deleteAll();
         itineraryItemRepository.deleteAll();
@@ -90,6 +94,53 @@ class TripIntegrationTest {
         tripRepository.deleteAll();
         refreshSessionRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    @Test
+    void managesChecklistTasksWithMembershipPermissions() throws Exception {
+        var ownerToken = registerAndLogin("owner@example.com", "Trip Owner");
+        var memberToken = registerAndLogin("member@example.com", "Trip Member");
+        var tripId = createTrip(ownerToken, "Aegean Summer");
+        var member = userRepository.findByEmail("member@example.com").orElseThrow();
+        tripMemberRepository.save(TripMember.member(tripRepository.findById(tripId).orElseThrow(), member));
+
+        var created = mockMvc.perform(post("/api/v1/trips/{tripId}/checklist", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Check passport validity","description":"At least six months remaining","assignedToEveryone":true,"priority":"HIGH","dueDate":"2027-06-12"}
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("TODO"))
+                .andExpect(jsonPath("$.assignedToEveryone").value(true))
+                .andReturn();
+        String itemId = JsonPath.read(created.getResponse().getContentAsString(), "$.id");
+
+        mockMvc.perform(patch("/api/v1/trips/{tripId}/checklist/{itemId}/status", tripId, itemId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(memberToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"status\":\"COMPLETED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.completedAt").isNotEmpty());
+
+        mockMvc.perform(put("/api/v1/trips/{tripId}/checklist/{itemId}", tripId, itemId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(memberToken))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"title":"Changed by member","assignedToEveryone":true,"priority":"LOW"}
+                                """))
+                .andExpect(status().isForbidden());
+
+        mockMvc.perform(get("/api/v1/trips/{tripId}/checklist", tripId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].title").value("Check passport validity"));
+
+        mockMvc.perform(delete("/api/v1/trips/{tripId}/checklist/{itemId}", tripId, itemId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(ownerToken)))
+                .andExpect(status().isNoContent());
     }
 
     @Test
