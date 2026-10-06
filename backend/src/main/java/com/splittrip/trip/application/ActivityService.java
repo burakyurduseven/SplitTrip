@@ -32,14 +32,15 @@ public class ActivityService {
     public IdeaView createIdea(UUID tripId, UUID userId, String title, String description, String location, int duration) {
         var membership = requireMembership(tripId, userId);
         var idea = ideaRepository.save(ActivityIdea.create(membership.getTrip(), membership.getUser(), title.trim(), clean(description), clean(location), duration));
-        return toIdeaView(idea, userId);
+        return toIdeaView(idea, userId, memberRepository.countActiveByTripId(tripId));
     }
 
     @Transactional(readOnly = true)
     public List<IdeaView> listIdeas(UUID tripId, UUID userId) {
         requireMembership(tripId, userId);
         var votesByIdea = voteRepository.findByTripId(tripId).stream().collect(java.util.stream.Collectors.groupingBy(ActivityVote::getActivityIdeaId));
-        return ideaRepository.findVisibleByTripId(tripId).stream().map(idea -> toIdeaView(idea, userId, votesByIdea.getOrDefault(idea.getId(), List.of()))).toList();
+        var memberCount = memberRepository.countActiveByTripId(tripId);
+        return ideaRepository.findVisibleByTripId(tripId).stream().map(idea -> toIdeaView(idea, userId, votesByIdea.getOrDefault(idea.getId(), List.of()), memberCount)).toList();
     }
 
     @Transactional
@@ -51,7 +52,7 @@ public class ActivityService {
                 .orElseGet(() -> ActivityVote.create(idea, user, value));
         vote.changeTo(value);
         voteRepository.save(vote);
-        return toIdeaView(idea, userId);
+        return toIdeaView(idea, userId, memberRepository.countActiveByTripId(tripId));
     }
 
     @Transactional
@@ -124,16 +125,20 @@ public class ActivityService {
     }
     private String clean(String value) { return value == null || value.isBlank() ? null : value.trim(); }
 
-    private IdeaView toIdeaView(ActivityIdea idea, UUID userId) {
+    private IdeaView toIdeaView(ActivityIdea idea, UUID userId, long memberCount) {
         var votes = voteRepository.findByActivityIdea_Id(idea.getId());
-        return toIdeaView(idea, userId, votes);
+        return toIdeaView(idea, userId, votes, memberCount);
     }
-    private IdeaView toIdeaView(ActivityIdea idea, UUID userId, List<ActivityVote> votes) {
+    private IdeaView toIdeaView(ActivityIdea idea, UUID userId, List<ActivityVote> votes, long memberCount) {
         var likes = votes.stream().filter(vote -> vote.getValue() == ActivityVoteValue.LIKE).count();
+        var maybes = votes.stream().filter(vote -> vote.getValue() == ActivityVoteValue.MAYBE).count();
         var dislikes = votes.stream().filter(vote -> vote.getValue() == ActivityVoteValue.DISLIKE).count();
         var currentVote = votes.stream().filter(vote -> vote.getUserId().equals(userId)).map(ActivityVote::getValue).findFirst().orElse(null);
+        var score = likes * 2 + maybes - dislikes;
+        var perfectMatch = memberCount > 0 && likes == memberCount;
         return new IdeaView(idea.getId(), idea.getCreatedBy().getId(), idea.getCreatedBy().getDisplayName(), idea.getTitle(),
-                idea.getDescription(), idea.getLocation(), idea.getEstimatedDurationMinutes(), idea.getStatus(), likes, dislikes, currentVote, idea.getCreatedAt());
+                idea.getDescription(), idea.getLocation(), idea.getEstimatedDurationMinutes(), idea.getStatus(), likes, maybes,
+                dislikes, votes.size(), memberCount, score, perfectMatch, currentVote, idea.getCreatedAt());
     }
     private ItineraryView toItineraryView(ItineraryItem item, boolean overlaps) {
         var idea = item.getActivityIdea();
@@ -142,7 +147,8 @@ public class ActivityService {
     }
 
     public record IdeaView(UUID id, UUID createdById, String createdByName, String title, String description,
-            String location, int estimatedDurationMinutes, ActivityIdeaStatus status, long likes, long dislikes,
+            String location, int estimatedDurationMinutes, ActivityIdeaStatus status, long likes, long maybes,
+            long dislikes, long voteCount, long memberCount, long score, boolean perfectMatch,
             ActivityVoteValue currentUserVote, Instant createdAt) {}
     public record ItineraryView(UUID id, UUID activityIdeaId, String title, String location, LocalDate scheduledDate,
             LocalTime startTime, LocalTime endTime, String note, String scheduledByName, boolean overlapsExistingItem) {}

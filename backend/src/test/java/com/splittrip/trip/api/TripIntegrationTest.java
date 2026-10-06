@@ -437,7 +437,22 @@ class TripIntegrationTest {
                         .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"value\":\"LIKE\"}"))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.likes").value(1))
+                .andExpect(jsonPath("$.maybes").value(0))
+                .andExpect(jsonPath("$.voteCount").value(1))
+                .andExpect(jsonPath("$.memberCount").value(1))
+                .andExpect(jsonPath("$.score").value(2))
+                .andExpect(jsonPath("$.perfectMatch").value(true))
                 .andExpect(jsonPath("$.currentUserVote").value("LIKE"));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
+                        "/api/v1/trips/{tripId}/activity-ideas/{ideaId}/vote", tripId, ideaId)
+                        .header(HttpHeaders.AUTHORIZATION, bearer(accessToken))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"value\":\"MAYBE\"}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.likes").value(0))
+                .andExpect(jsonPath("$.maybes").value(1))
+                .andExpect(jsonPath("$.score").value(1))
+                .andExpect(jsonPath("$.perfectMatch").value(false))
+                .andExpect(jsonPath("$.currentUserVote").value("MAYBE"));
 
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put(
                         "/api/v1/trips/{tripId}/activity-ideas/{ideaId}/vote", tripId, ideaId)
@@ -469,8 +484,8 @@ class TripIntegrationTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$", hasSize(3)))
                 .andExpect(jsonPath("$[0].likes").value(1));
 
-        assertTrue(statistics.getPrepareStatementCount() <= 3,
-                "Idea listing should use membership, batched vote, and idea queries only.");
+        assertTrue(statistics.getPrepareStatementCount() <= 4,
+                "Idea listing should use membership, member count, batched vote, and idea queries only.");
     }
 
     @Test

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 
 import type { ActivityIdea, ActivityVoteValue, CreateActivityIdeaInput, ItineraryItem, ScheduleActivityInput, Trip, UpdateScheduleInput } from './types'
+import { TripMatch } from './TripMatch'
 
 type Props = {
   trip: Trip
@@ -71,6 +72,7 @@ export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVot
   const [scheduleEnd, setScheduleEnd] = useState('11:00')
   const [formError, setFormError] = useState('')
   const [notice, setNotice] = useState('')
+  const [matchOpen, setMatchOpen] = useState(false)
   const dayItems = itinerary.filter(item => item.scheduledDate === selectedDate)
   const timelineStart = Math.min(8 * 60, ...dayItems.map(item => Math.floor(timeToMinutes(item.startTime) / 30) * 30))
   const timelineEnd = Math.max(22 * 60, ...dayItems.map(item => Math.ceil(timeToMinutes(item.endTime) / 30) * 30))
@@ -161,12 +163,13 @@ export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVot
   return <div className="itinerary-workspace">
     <aside className="idea-pool">
       <header><div><p>GROUP BRAINSTORM</p><h2>Idea pool</h2><small>Drag an idea onto a time slot, or tap Schedule.</small></div><button type="button" onClick={() => { setIdeaFormOpen(true); setFormError('') }}>＋ Add idea</button></header>
+      {ideas.some(idea => idea.status === 'PROPOSED') && <button className="trip-match-launch" type="button" onClick={() => setMatchOpen(true)}><span><i>♥</i><b>Trip Match</b><small>Vote together, plan better.</small></span><strong>Start matching →</strong></button>}
       <div className="idea-list">
         {ideas.length === 0 && <div className="idea-empty"><span>✦</span><strong>Start with a possibility.</strong><small>Everyone in the trip can suggest as many activities as they like.</small></div>}
         {ideas.map(idea => <article className={`idea-card ${idea.status.toLowerCase()}`} key={idea.id} draggable={idea.status === 'PROPOSED'} onDragStart={event => event.dataTransfer.setData('text/activity-idea', idea.id)}>
           <div className="idea-card-top"><span>{idea.status === 'SCHEDULED' ? '✓ PLANNED' : '⋮⋮ DRAG TO PLAN'}</span><small>{idea.estimatedDurationMinutes} min</small></div>
           <h3>{idea.title}</h3>{idea.location && <p>⌖ {idea.location}</p>}{idea.description && <p>{idea.description}</p>}
-          <footer><div className="vote-buttons"><button type="button" className={idea.currentUserVote === 'LIKE' ? 'active' : ''} aria-label={`Like ${idea.title}`} onClick={() => void onVote(idea.id, idea.currentUserVote === 'LIKE' ? null : 'LIKE')}>↑ {idea.likes}</button><button type="button" className={idea.currentUserVote === 'DISLIKE' ? 'active dislike' : ''} aria-label={`Dislike ${idea.title}`} onClick={() => void onVote(idea.id, idea.currentUserVote === 'DISLIKE' ? null : 'DISLIKE')}>↓ {idea.dislikes}</button></div><span>by {idea.createdByName}</span>{idea.status === 'PROPOSED' && <button type="button" onClick={() => openScheduler(idea)}>Schedule</button>}</footer>
+          <footer><div className="vote-buttons"><button type="button" className={idea.currentUserVote === 'LIKE' ? 'active' : ''} aria-label={`Like ${idea.title}`} onClick={() => void onVote(idea.id, idea.currentUserVote === 'LIKE' ? null : 'LIKE')}>↑ {idea.likes}</button><button type="button" className={idea.currentUserVote === 'MAYBE' ? 'active maybe' : ''} aria-label={`Maybe ${idea.title}`} onClick={() => void onVote(idea.id, idea.currentUserVote === 'MAYBE' ? null : 'MAYBE')}>◆ {idea.maybes}</button><button type="button" className={idea.currentUserVote === 'DISLIKE' ? 'active dislike' : ''} aria-label={`Dislike ${idea.title}`} onClick={() => void onVote(idea.id, idea.currentUserVote === 'DISLIKE' ? null : 'DISLIKE')}>↓ {idea.dislikes}</button></div><span>by {idea.createdByName}</span>{idea.status === 'PROPOSED' && <button type="button" onClick={() => openScheduler(idea)}>Schedule</button>}</footer>
         </article>)}
       </div>
     </aside>
@@ -188,5 +191,6 @@ export function ItineraryWorkspace({ trip, ideas, itinerary, onCreateIdea, onVot
     {ideaFormOpen && <div className="dialog-backdrop" role="presentation"><section className="activity-dialog" role="dialog" aria-modal="true" aria-labelledby="idea-dialog-title"><button className="dialog-close" type="button" aria-label="Close" onClick={() => setIdeaFormOpen(false)}>×</button><p>ADD TO THE MIX</p><h2 id="idea-dialog-title">What should we do?</h2><form onSubmit={createIdea}><label>Activity name<input name="title" required maxLength={120} placeholder="Sunset boat tour" /></label><div className="activity-form-row"><label>Location <span>optional</span><input name="location" maxLength={160} placeholder="Old harbour" /></label><label>Estimated duration<select name="duration" defaultValue="120"><option value="30">30 minutes</option><option value="60">1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option><option value="240">4 hours</option></select></label></div><label>Why this one? <span>optional</span><textarea name="description" maxLength={500} placeholder="Share a detail with the crew..." /></label>{formError && <p className="form-error" role="alert">{formError}</p>}<button className="activity-submit" type="submit">Share idea →</button></form></section></div>}
 
     {scheduleIdea && <div className="dialog-backdrop" role="presentation"><section className="activity-dialog schedule-dialog" role="dialog" aria-modal="true" aria-labelledby="schedule-dialog-title"><button className="dialog-close" type="button" aria-label="Close" onClick={() => { setScheduleIdea(null); setEditingItem(null) }}>×</button><p>{editingItem ? 'CHANGE OF PLANS' : 'MAKE IT REAL'}</p><h2 id="schedule-dialog-title">{editingItem ? 'Adjust the itinerary.' : 'Place it on the map.'}</h2><div className="schedule-summary"><strong>{scheduleIdea.title}</strong><span>{scheduleIdea.estimatedDurationMinutes} min suggested</span></div><form onSubmit={schedule}><label>Date<select name="date" value={selectedDate} onChange={event => setSelectedDate(event.target.value)}>{dates.map(date => <option value={date} key={date}>{dateLabel(date)}</option>)}</select></label><div className="activity-form-row"><label>Starts<input name="startTime" type="time" value={scheduleStart} onChange={event => { setScheduleStart(event.target.value); setScheduleEnd(addMinutes(event.target.value, scheduleIdea.estimatedDurationMinutes)) }} required /></label><label>Ends<input name="endTime" type="time" value={scheduleEnd} onChange={event => setScheduleEnd(event.target.value)} required /></label></div><label>Plan note <span>optional</span><textarea name="note" maxLength={500} defaultValue={editingItem?.note ?? ''} placeholder="Meet by the entrance..." /></label>{formError && <p className="form-error" role="alert">{formError}</p>}<div className="schedule-actions">{editingItem && <button className="remove-schedule" type="button" onClick={() => void removeFromSchedule()}>Return to idea pool</button>}<button className="activity-submit" type="submit">{editingItem ? 'Save changes →' : 'Add to itinerary →'}</button></div></form></section></div>}
+    {matchOpen && <TripMatch ideas={ideas} onClose={() => setMatchOpen(false)} onVote={async (ideaId, vote) => { await onVote(ideaId, vote) }} onSchedule={idea => { setMatchOpen(false); openScheduler(idea) }} />}
   </div>
 }

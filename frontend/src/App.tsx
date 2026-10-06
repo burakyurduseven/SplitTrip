@@ -339,7 +339,7 @@ function App() {
       const updated = await response.json() as ActivityIdea
       setIdeas(current => current.map(idea => idea.id === updated.id ? updated : idea))
     } else {
-      setIdeas(current => current.map(idea => idea.id === ideaId ? { ...idea, likes: idea.likes - (idea.currentUserVote === 'LIKE' ? 1 : 0), dislikes: idea.dislikes - (idea.currentUserVote === 'DISLIKE' ? 1 : 0), currentUserVote: null } : idea))
+      setIdeas(current => current.map(idea => idea.id === ideaId ? { ...idea, likes: idea.likes - (idea.currentUserVote === 'LIKE' ? 1 : 0), maybes: idea.maybes - (idea.currentUserVote === 'MAYBE' ? 1 : 0), dislikes: idea.dislikes - (idea.currentUserVote === 'DISLIKE' ? 1 : 0), voteCount: Math.max(0, idea.voteCount - 1), currentUserVote: null } : idea))
     }
   }
 

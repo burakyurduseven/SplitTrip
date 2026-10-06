@@ -36,7 +36,7 @@ export type TripMember = {
 export type CreatedInvitation = { token: string; expiresAt: string }
 export type InvitationPreview = { tripId: string; tripTitle: string; destination: string; expiresAt: string }
 
-export type ActivityVoteValue = 'LIKE' | 'DISLIKE'
+export type ActivityVoteValue = 'LIKE' | 'MAYBE' | 'DISLIKE'
 export type ActivityIdea = {
   id: string
   createdById: string
@@ -47,7 +47,12 @@ export type ActivityIdea = {
   estimatedDurationMinutes: number
   status: 'PROPOSED' | 'SCHEDULED' | 'ARCHIVED'
   likes: number
+  maybes: number
   dislikes: number
+  voteCount: number
+  memberCount: number
+  score: number
+  perfectMatch: boolean
   currentUserVote: ActivityVoteValue | null
   createdAt: string
 }

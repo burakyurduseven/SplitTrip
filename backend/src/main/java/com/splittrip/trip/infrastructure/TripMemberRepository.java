@@ -45,4 +45,7 @@ public interface TripMemberRepository extends JpaRepository<TripMember, UUID> {
     List<TripMember> findActiveByTripId(@Param("tripId") UUID tripId);
 
     Optional<TripMember> findByTripIdAndUserId(UUID tripId, UUID userId);
+
+    @Query("select count(membership) from TripMember membership where membership.trip.id = :tripId and membership.status = 'ACTIVE'")
+    long countActiveByTripId(@Param("tripId") UUID tripId);
 }
