@@ -42,7 +42,7 @@ See [Architecture](docs/architecture.md) and [Domain model](docs/domain-model.md
 | Frontend | React, TypeScript, Vite, Tailwind CSS |
 | Database | PostgreSQL, Flyway |
 | API | REST, OpenAPI / Swagger UI |
-| Testing | JUnit, Mockito, Testcontainers, Vitest, Testing Library |
+| Testing | JUnit, Mockito, Testcontainers, Vitest, Testing Library, Playwright |
 | Delivery | Docker, GitHub Actions |
 
 ## Engineering highlights
@@ -53,7 +53,8 @@ See [Architecture](docs/architecture.md) and [Domain model](docs/domain-model.md
 - Repository queries load related records in batches to avoid N+1 behavior on trip workspaces.
 - Flyway owns the schema and Hibernate validates it at startup.
 - Integration tests run against a real PostgreSQL container; frontend behavior is covered with user-facing component tests.
-- CI independently verifies backend tests and frontend lint, tests, and production build.
+- End-to-end tests exercise the complete application against Spring Boot and a real PostgreSQL database in desktop and mobile Chromium viewports.
+- CI independently verifies backend tests, frontend lint and component tests, end-to-end browser flows, and the production build.
 
 ## Run locally
 
@@ -102,6 +103,9 @@ cd frontend
 npm run lint
 npm test -- --run
 npm run build
+
+# End-to-end (PostgreSQL, backend, and frontend must be running)
+npm run test:e2e
 ```
 
 ## Production image
