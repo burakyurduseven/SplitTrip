@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useEffectEvent, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 
 import { Dashboard } from './Dashboard'
@@ -111,6 +111,33 @@ function App() {
     }
   }
 
+  const loadTripWorkspace = async (tripId: string, request: (url: string) => Promise<Response>) => {
+    const [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse, checklistResponse] = await Promise.all([
+      request(`/api/v1/trips/${tripId}`),
+      request(`/api/v1/trips/${tripId}/members`),
+      request(`/api/v1/trips/${tripId}/activity-ideas`),
+      request(`/api/v1/trips/${tripId}/itinerary`),
+      request(`/api/v1/trips/${tripId}/expenses`),
+      request(`/api/v1/trips/${tripId}/balances`),
+      request(`/api/v1/trips/${tripId}/settlements`),
+      request(`/api/v1/trips/${tripId}/checklist`),
+    ])
+    const responses = [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse, checklistResponse]
+    const failedResponse = responses.find(response => !response.ok)
+    if (failedResponse) {
+      const problem = await readProblem(failedResponse)
+      throw new Error(problem.detail ?? 'Some trip information could not be loaded.')
+    }
+    const [trip, loadedMembers, loadedIdeas, loadedItinerary, loadedExpenses, loadedBalances, loadedSettlements, loadedChecklist] = await Promise.all([
+      tripResponse.json() as Promise<Trip>, membersResponse.json() as Promise<TripMember[]>, ideasResponse.json() as Promise<ActivityIdea[]>,
+      itineraryResponse.json() as Promise<ItineraryItem[]>, expensesResponse.json() as Promise<Expense[]>, balancesResponse.json() as Promise<BalanceSummary>,
+      settlementsResponse.json() as Promise<Settlement[]>, checklistResponse.json() as Promise<ChecklistItem[]>,
+    ])
+    setSelectedTrip(trip); setMembers(loadedMembers); setIdeas(loadedIdeas); setItinerary(loadedItinerary)
+    setExpenses(loadedExpenses); setBalances(loadedBalances); setSettlements(loadedSettlements); setChecklist(loadedChecklist)
+    return trip
+  }
+
   const loadAccount = async (token: string) => {
     const authorization = { Authorization: `Bearer ${token}` }
     const [profileResponse, tripsResponse] = await Promise.all([
@@ -134,27 +161,10 @@ function App() {
 
     const tripRoute = window.location.pathname.match(/^\/trips\/([0-9a-f-]+)$/i)
     if (tripRoute) {
-      const [detailResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse, checklistResponse] = await Promise.all([
-        fetch(`/api/v1/trips/${tripRoute[1]}`, { headers: authorization }),
-        fetch(`/api/v1/trips/${tripRoute[1]}/members`, { headers: authorization }),
-        fetch(`/api/v1/trips/${tripRoute[1]}/activity-ideas`, { headers: authorization }),
-        fetch(`/api/v1/trips/${tripRoute[1]}/itinerary`, { headers: authorization }),
-        fetch(`/api/v1/trips/${tripRoute[1]}/expenses`, { headers: authorization }),
-        fetch(`/api/v1/trips/${tripRoute[1]}/balances`, { headers: authorization }),
-        fetch(`/api/v1/trips/${tripRoute[1]}/settlements`, { headers: authorization }),
-        fetch(`/api/v1/trips/${tripRoute[1]}/checklist`, { headers: authorization }),
-      ])
-      if (detailResponse.ok) {
-        setSelectedTrip(await detailResponse.json() as Trip)
-        if (membersResponse.ok) setMembers(await membersResponse.json() as TripMember[])
-        if (ideasResponse.ok) setIdeas(await ideasResponse.json() as ActivityIdea[])
-        if (itineraryResponse.ok) setItinerary(await itineraryResponse.json() as ItineraryItem[])
-        if (expensesResponse.ok) setExpenses(await expensesResponse.json() as Expense[])
-        if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
-        if (settlementsResponse.ok) setSettlements(await settlementsResponse.json() as Settlement[])
-        if (checklistResponse.ok) setChecklist(await checklistResponse.json() as ChecklistItem[])
+      try {
+        await loadTripWorkspace(tripRoute[1], url => fetch(url, { headers: authorization }))
         setPage('trip')
-      } else {
+      } catch {
         window.history.replaceState({}, '', '/trips')
         setPage('trips')
       }
@@ -271,35 +281,28 @@ function App() {
     setTripLoadError('')
     if (updateHistory) window.history.pushState({}, '', `/trips/${trip.id}`)
     try {
-      const [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse, checklistResponse] = await Promise.all([
-        authenticatedFetch(`/api/v1/trips/${trip.id}`),
-        authenticatedFetch(`/api/v1/trips/${trip.id}/members`),
-        authenticatedFetch(`/api/v1/trips/${trip.id}/activity-ideas`),
-        authenticatedFetch(`/api/v1/trips/${trip.id}/itinerary`),
-        authenticatedFetch(`/api/v1/trips/${trip.id}/expenses`),
-        authenticatedFetch(`/api/v1/trips/${trip.id}/balances`),
-        authenticatedFetch(`/api/v1/trips/${trip.id}/settlements`),
-        authenticatedFetch(`/api/v1/trips/${trip.id}/checklist`),
-      ])
-      const failedResponse = [tripResponse, membersResponse, ideasResponse, itineraryResponse, expensesResponse, balancesResponse, settlementsResponse, checklistResponse].find(response => !response.ok)
-      if (failedResponse) {
-        const problem = await readProblem(failedResponse)
-        throw new Error(problem.detail ?? 'Some trip information could not be loaded.')
-      }
-      if (tripResponse.ok) setSelectedTrip(await tripResponse.json() as Trip)
-      if (membersResponse.ok) setMembers(await membersResponse.json() as TripMember[])
-      if (ideasResponse.ok) setIdeas(await ideasResponse.json() as ActivityIdea[])
-      if (itineraryResponse.ok) setItinerary(await itineraryResponse.json() as ItineraryItem[])
-      if (expensesResponse.ok) setExpenses(await expensesResponse.json() as Expense[])
-      if (balancesResponse.ok) setBalances(await balancesResponse.json() as BalanceSummary)
-      if (settlementsResponse.ok) setSettlements(await settlementsResponse.json() as Settlement[])
-      if (checklistResponse.ok) setChecklist(await checklistResponse.json() as ChecklistItem[])
+      await loadTripWorkspace(trip.id, url => authenticatedFetch(url))
     } catch (reason) {
       setTripLoadError(reason instanceof Error ? reason.message : 'We could not load this trip. Check your connection and try again.')
     } finally {
       setTripLoading(false)
     }
   }
+  const openTripFromHistory = useEffectEvent((trip: Trip) => { void openTrip(trip, false) })
+
+  useEffect(() => {
+    if (!user) return
+    const handleHistory = () => {
+      const path = window.location.pathname
+      if (path === '/') { setPage('home'); setSelectedTrip(null); return }
+      if (path === '/trips') { setPage('trips'); setSelectedTrip(null); return }
+      const tripRoute = path.match(/^\/trips\/([0-9a-f-]+)$/i)
+      const trip = tripRoute ? trips.find(candidate => candidate.id === tripRoute[1]) : undefined
+      if (trip) openTripFromHistory(trip)
+    }
+    window.addEventListener('popstate', handleHistory)
+    return () => window.removeEventListener('popstate', handleHistory)
+  }, [user, trips])
 
   const createInvitation = async () => {
     if (!selectedTrip) throw new Error('No trip is selected.')
@@ -330,11 +333,11 @@ function App() {
   }
 
   const voteOnIdea = async (ideaId: string, vote: ActivityVoteValue | null) => {
-    if (!selectedTrip) return
+    if (!selectedTrip) throw new Error('No trip is selected.')
     const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/activity-ideas/${ideaId}/vote`, vote
       ? { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ value: vote }) }
       : { method: 'DELETE' })
-    if (!response.ok) return
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not save your vote.') }
     if (vote) {
       const updated = await response.json() as ActivityIdea
       setIdeas(current => current.map(idea => idea.id === updated.id ? updated : idea))
@@ -462,21 +465,18 @@ function App() {
   }
 
   const removeMember = async (userId: string) => {
-    if (!selectedTrip) return
+    if (!selectedTrip) throw new Error('No trip is selected.')
     const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/members/${userId}`, { method: 'DELETE' })
-    if (response.ok) setMembers(current => current.filter(member => member.userId !== userId))
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not remove this member.') }
+    setMembers(current => current.filter(member => member.userId !== userId))
   }
 
   const leaveTrip = async () => {
-    if (!selectedTrip) return
+    if (!selectedTrip) throw new Error('No trip is selected.')
     const response = await authenticatedFetch(`/api/v1/trips/${selectedTrip.id}/members/me`, { method: 'DELETE' })
-    if (response.ok) {
-      setTrips(current => current.filter(trip => trip.id !== selectedTrip.id))
-      setMembers([])
-      setChecklist([])
-      setSelectedTrip(null)
-      navigate('trips')
-    }
+    if (!response.ok) { const problem = await readProblem(response); throw new Error(problem.detail ?? 'We could not leave this trip.') }
+    setTrips(current => current.filter(trip => trip.id !== selectedTrip.id))
+    setMembers([]); setChecklist([]); setSelectedTrip(null); navigate('trips')
   }
 
   const acceptInvitation = async () => {
@@ -489,17 +489,13 @@ function App() {
         const problem = await readProblem(response)
         throw new Error(problem.detail ?? 'We could not join this trip.')
       }
-      const [tripResponse, membersResponse] = await Promise.all([
-        authenticatedFetch(`/api/v1/trips/${invitation.tripId}`),
-        authenticatedFetch(`/api/v1/trips/${invitation.tripId}/members`),
-      ])
-      const joinedTrip = await tripResponse.json() as Trip
+      const joinedTripResponse = await authenticatedFetch(`/api/v1/trips/${invitation.tripId}`)
+      if (!joinedTripResponse.ok) throw new Error('The trip was joined, but its workspace could not be opened.')
+      const joinedTrip = await joinedTripResponse.json() as Trip
       setTrips(current => current.some(trip => trip.id === joinedTrip.id) ? current : [joinedTrip, ...current])
-      setSelectedTrip(joinedTrip)
-      if (membersResponse.ok) setMembers(await membersResponse.json() as TripMember[])
       setInvitation(null)
       window.history.replaceState({}, '', `/trips/${joinedTrip.id}`)
-      setPage('trip')
+      await openTrip(joinedTrip, false)
     } catch (reason) {
       setJoinError(reason instanceof Error ? reason.message : 'We could not join this trip.')
     } finally {

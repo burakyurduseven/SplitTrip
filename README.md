@@ -8,10 +8,12 @@ SplitTrip is a mobile-first group travel workspace for turning ideas into an iti
 
 - Secure account registration, sign-in, rotating refresh sessions, and logout
 - Trip creation, member invitations, roles, removal, and voluntary departure
-- Unlimited activity ideas with one like or dislike per member
+- Unlimited activity ideas with like, maybe, or dislike voting and an optional gamified Trip Match flow
 - A visual day planner with drag-and-drop scheduling, time ranges, overlaps, editing, and removal
-- Expense creation and editing with equal, exact-amount, or percentage splits
+- Collaborative trip checklists with assignees, priorities, deadlines, and progress tracking
+- Expense creation and editing with equal, exact-amount, or percentage splits, plus receipt and invoice attachments
 - Per-member balances, simplified suggested repayments, settlement history, and reversible settlements
+- A trip overview that combines readiness, itinerary, checklist, expenses, balances, and actionable alerts
 - Responsive English interface designed for both phones and desktop browsers
 
 ## Architecture
@@ -109,6 +111,7 @@ The root Dockerfile builds the frontend, embeds it in the Spring Boot applicatio
 ```bash
 docker build -t splittrip .
 docker run --rm -p 8080:8080 \
+  -v splittrip-data:/app/data \
   -e DB_URL=jdbc:postgresql://host.docker.internal:5432/splittrip \
   -e DB_USERNAME=splittrip \
   -e DB_PASSWORD=splittrip \

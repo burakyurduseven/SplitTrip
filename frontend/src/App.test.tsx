@@ -109,6 +109,11 @@ describe('App', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Invite people ＋' }))
     expect(await screen.findByDisplayValue('http://localhost:3000/invitations/secure-invite-token')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close invitation' }))
+    window.history.pushState({}, '', '/trips')
+    window.dispatchEvent(new PopStateEvent('popstate'))
+    expect(await screen.findByRole('heading', { name: 'Your trips' })).toBeDefined()
   })
 
   it('refreshes an expired access token and retries trip creation', async () => {

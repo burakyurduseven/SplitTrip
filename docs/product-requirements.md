@@ -120,7 +120,7 @@ A group must be able to complete this flow without relying on another tool:
 
 ## 7. Outside the MVP
 
-Currency conversion, historical exchange rates, maps, routing, OCR, receipt images, payment integrations, Redis, WebSocket, notifications, offline support, PWA, AI features, PDF/Excel export, and advanced analytics are outside the MVP.
+Currency conversion, historical exchange rates, maps, routing, OCR, payment integrations, Redis, WebSocket, notifications, offline support, PWA, AI features, PDF/Excel export, and advanced analytics are outside the MVP. Receipt and invoice attachments are included, without OCR processing.
 
 ## 8. Quality requirements
 

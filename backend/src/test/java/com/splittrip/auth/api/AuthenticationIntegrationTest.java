@@ -6,6 +6,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.cookie;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.forwardedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -50,6 +51,13 @@ class AuthenticationIntegrationTest {
     void cleanDatabase() {
         refreshSessionRepository.deleteAll();
         userRepository.deleteAll();
+    }
+
+    @Test
+    void allowsPublicSpaRoutesToReachTheFrontend() throws Exception {
+        mockMvc.perform(get("/trips/19f19030-0946-4416-89be-bb1f130591cf"))
+                .andExpect(status().isOk())
+                .andExpect(forwardedUrl("/index.html"));
     }
 
     @Test

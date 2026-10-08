@@ -48,6 +48,7 @@ public class SecurityConfiguration {
                                 "/swagger-ui.html",
                                 "/swagger-ui/**")
                         .permitAll()
+                        .requestMatchers(HttpMethod.GET, "/trips", "/trips/*", "/invitations/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/invitations/*").permitAll()
                         .anyRequest().authenticated())
                 .httpBasic(AbstractHttpConfigurer::disable)

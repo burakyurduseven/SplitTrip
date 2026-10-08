@@ -50,3 +50,12 @@ jobs:
         run: npm test -- --run
       - name: Build
         run: npm run build
+
+  container:
+    name: Production image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build production image
+        run: docker build --tag splittrip:ci .

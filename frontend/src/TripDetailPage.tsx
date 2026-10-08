@@ -60,6 +60,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
   const [inviteError, setInviteError] = useState('')
   const [inviteLoading, setInviteLoading] = useState(false)
   const [editingTrip, setEditingTrip] = useState(false)
+  const [memberError, setMemberError] = useState('')
   const days = Math.max(1, Math.round((new Date(`${trip.endDate}T00:00:00`).getTime() - new Date(`${trip.startDate}T00:00:00`).getTime()) / 86400000) + 1)
   const totalSpent = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
   const currentBalance = Number(balances?.members.find(member => member.userId === currentUserId)?.netBalance ?? 0)
@@ -82,6 +83,21 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
 
   const copyInvitation = async () => {
     await navigator.clipboard.writeText(inviteUrl)
+  }
+
+  const removeMember = async (userId: string) => {
+    const member = members.find(candidate => candidate.userId === userId)
+    if (!window.confirm(`Remove ${member?.displayName ?? 'this traveller'} from the trip?`)) return
+    setMemberError('')
+    try { await onRemoveMember(userId) }
+    catch (reason) { setMemberError(reason instanceof Error ? reason.message : 'We could not remove this member.') }
+  }
+
+  const leaveTrip = async () => {
+    if (!window.confirm(`Leave “${trip.title}”? You will need a new invitation to rejoin.`)) return
+    setMemberError('')
+    try { await onLeaveTrip() }
+    catch (reason) { setMemberError(reason instanceof Error ? reason.message : 'We could not leave this trip.') }
   }
 
   return (
@@ -114,7 +130,7 @@ export function TripDetailPage({ trip, members, ideas, itinerary, expenses, bala
           {!loading && !loadError && section === 'checklist' && <ChecklistWorkspace trip={trip} members={members} items={checklist} currentUserId={currentUserId} onSave={onSaveChecklist} onStatusChange={onChecklistStatusChange} onDelete={onDeleteChecklist} />}
           {!loading && !loadError && section === 'expenses' && <ExpenseWorkspace trip={trip} members={members} expenses={expenses} onSave={onSaveExpense} onDelete={onDeleteExpense} onUploadAttachments={onUploadExpenseAttachments} onFetchAttachment={onFetchExpenseAttachment} onDeleteAttachment={onDeleteExpenseAttachment} />}
           {!loading && !loadError && section === 'balances' && <BalanceWorkspace trip={trip} summary={balances} settlements={settlements} currentUserId={currentUserId} onRecord={onRecordSettlement} onVoid={onVoidSettlement} />}
-          {!loading && !loadError && section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header><div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void onRemoveMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void onLeaveTrip()}>Leave trip</button>}</div>}
+          {!loading && !loadError && section === 'members' && <div className="members-preview"><header><div><p className="panel-kicker">TRIP CREW</p><h2>{members.length} {members.length === 1 ? 'traveller' : 'travellers'}</h2></div>{trip.currentUserRole === 'OWNER' && <button type="button" onClick={() => void createInvitation()}>Invite people ＋</button>}</header>{memberError && <p className="form-error" role="alert"><span>!</span>{memberError}</p>}<div className="member-list">{members.map(member => <article key={member.userId}><div className="current-member"><span>{member.displayName.split(' ').map(word => word[0]).slice(0, 2).join('')}</span><div><strong>{member.displayName}</strong><small>{member.email}</small></div></div><div className="member-actions"><b>{member.role}</b>{trip.currentUserRole === 'OWNER' && member.role !== 'OWNER' && <button type="button" onClick={() => void removeMember(member.userId)}>Remove</button>}</div></article>)}</div>{trip.currentUserRole === 'MEMBER' && <button className="leave-trip" type="button" onClick={() => void leaveTrip()}>Leave trip</button>}</div>}
         </section>
       </main>
       {editingTrip && <EditTripDialog trip={trip} currencyLocked={expenses.length > 0} onClose={() => setEditingTrip(false)} onUpdate={onUpdateTrip} />}

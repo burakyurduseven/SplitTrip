@@ -40,4 +40,14 @@ describe('Trip Match', () => {
     expect(screen.getByText('PERFECT MATCH')).toBeDefined()
     expect(screen.getByRole('button', { name: 'Add to itinerary' })).toBeDefined()
   })
+
+  it('keeps the current card visible when saving a vote fails', async () => {
+    render(<TripMatch ideas={[boatTour]} onClose={() => undefined} onSchedule={() => undefined} onVote={async () => { throw new Error('Vote service is unavailable.') }} />)
+
+    fireEvent.click(screen.getByRole('button', { name: /Maybe/ }))
+
+    expect((await screen.findByRole('alert')).textContent).toContain('Vote service is unavailable.')
+    expect(screen.getByRole('heading', { name: 'Boat tour' })).toBeDefined()
+    expect(screen.getByText('1 / 1')).toBeDefined()
+  })
 })

@@ -13,8 +13,12 @@ RUN chmod +x backend/mvnw && ./backend/mvnw -f backend/pom.xml --batch-mode -Dsk
 
 FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
-RUN addgroup -S splittrip && adduser -S splittrip -G splittrip
+RUN addgroup -S splittrip && adduser -S splittrip -G splittrip \
+    && mkdir -p /app/data/uploads \
+    && chown -R splittrip:splittrip /app/data
 COPY --from=backend-build /workspace/backend/target/*.jar app.jar
+ENV FILE_STORAGE_ROOT=/app/data/uploads
+VOLUME ["/app/data"]
 USER splittrip
 EXPOSE 8080
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]
