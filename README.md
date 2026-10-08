@@ -1,8 +1,28 @@
 # SplitTrip
 
-SplitTrip is a mobile-first group travel workspace for turning ideas into an itinerary and shared spending into clear, auditable balances. A travel group can collect activity suggestions, vote together, arrange the winning ideas on a visual timeline, split expenses in several ways, and record settlements without switching between multiple apps.
+[![CI](https://github.com/burakyurduseven/SplitTrip/actions/workflows/ci.yml/badge.svg)](https://github.com/burakyurduseven/SplitTrip/actions/workflows/ci.yml)
+![Java 21](https://img.shields.io/badge/Java-21-ED8B00?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-4-6DB33F?logo=springboot&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=172B4D)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?logo=postgresql&logoColor=white)
+
+SplitTrip is a mobile-first collaborative travel workspace that turns group ideas into an itinerary and shared spending into clear, auditable balances. Travellers can propose activities, vote together, arrange plans on a visual timeline, coordinate a checklist, split expenses, attach receipts, and settle debts without switching between multiple apps.
 
 > Built as a portfolio project around production-minded full-stack engineering: secure authentication, explicit domain rules, database migrations, integration tests, query optimization, accessibility, and automated delivery checks.
+
+![SplitTrip dashboard](docs/media/dashboard-desktop.png)
+
+### [▶ Watch the product walkthrough](docs/media/splittrip-demo.webm)
+
+## Product tour
+
+| Collaborative itinerary | Trip checklist |
+| --- | --- |
+| <img src="docs/media/itinerary-planner.png" alt="Activity voting and visual itinerary planner" width="700"> | <img src="docs/media/checklist-workspace.png" alt="Collaborative trip checklist" width="700"> |
+| Shared expense ledger | Mobile-first dashboard |
+| <img src="docs/media/expense-ledger.png" alt="Shared expense ledger" width="700"> | <img src="docs/media/dashboard-mobile.png" alt="SplitTrip mobile dashboard" width="360"> |
+
+The complete workspace also includes a [trip overview](docs/media/trip-overview.png) and [balance settlement view](docs/media/balances.png).
 
 ## What it does
 
@@ -55,6 +75,19 @@ See [Architecture](docs/architecture.md) and [Domain model](docs/domain-model.md
 - Integration tests run against a real PostgreSQL container; frontend behavior is covered with user-facing component tests.
 - End-to-end tests exercise the complete application against Spring Boot and a real PostgreSQL database in desktop and mobile Chromium viewports.
 - CI independently verifies backend tests, frontend lint and component tests, end-to-end browser flows, and the production build.
+
+## Tested user journey
+
+The Playwright suite validates the application as a real traveller would use it:
+
+```text
+Register → Log out → Log in → Create trip
+    → Propose and vote on an activity → Schedule it
+    → Create and complete a checklist task
+    → Add, edit, and delete an expense → Review balances
+```
+
+The flow runs in both desktop and mobile Chromium viewports. Backend integration tests independently exercise authentication, authorization, invitations, itinerary rules, expense splitting, settlements, attachments, and checklist behavior against PostgreSQL containers.
 
 ## Run locally
 
